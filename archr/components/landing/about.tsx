@@ -2,9 +2,9 @@ export default function About() {
   return (
     <section
       id="about"
-      className="relative z-10 px-6 pb-24 text-white"
+      className="relative px-6 pb-24 text-white"
     >
-      <div className="pointer-events-none absolute inset-0">
+      <div className="pointer-events-none absolute inset-0 z-20">
         <div className="absolute inset-x-0 bottom-0 h-48 bg-linear-to-t from-[#060b1a] to-transparent" />
         <div className="absolute left-1/2 top-10 h-64 w-200 -translate-x-1/2 rounded-full bg-blue-500/10 blur-3xl" />
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
+import Image from "next/image";
 export default function Navbar() {
   const [show, setShow] = useState(false);
 
@@ -13,29 +13,33 @@ export default function Navbar() {
   }, []);
 
   return (
-    <header
-      className="fixed left-1/2 top-5 z-50 w-[calc(100%-2rem)] max-w-5xl -translate-x-1/2 transition-all duration-500"
-    >
-      <div 
+    <header className="fixed left-1/2 top-5 z-50 w-[calc(100%-2rem)] max-w-5xl -translate-x-1/2 transition-all duration-500">
+      <div
         className={`flex items-center justify-between gap-6 rounded-full px-6 py-3 text-sm transition-all duration-300 ${
-          show 
-            ? "border border-white/10 bg-white/5 backdrop-blur-md py-3 shadow-xl shadow-black/20" 
+          show
+            ? "border border-white/10 bg-white/5 backdrop-blur-md py-3 shadow-xl shadow-black/20"
             : "border-transparent bg-transparent py-5"
         }`}
       >
         {/* Logo */}
         <div className="flex items-center gap-2 font-semibold text-white">
-          <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors ${show ? 'bg-white/10' : 'bg-blue-500/20'}`}>
-            A
-          </span>
-          Archr
+          <Image src="/Logo.png" alt="Archr" width={40} height={40} />
+          <span className="text-2xl font-bold">Archr</span>
         </div>
 
         {/* Links - Always visible, but color shifts slightly for readability */}
-        <nav className={`hidden items-center gap-6 md:flex transition-colors ${show ? 'text-white/80' : 'text-white'}`}>
-          <a className="transition hover:text-blue-300" href="#about">About</a>
-          <a className="transition hover:text-blue-300" href="#features">Features</a>
-          <a className="transition hover:text-blue-300" href="#pricing">Pricing</a>
+        <nav
+          className={`hidden items-center gap-6 md:flex transition-colors ${show ? "text-white/80" : "text-white"}`}
+        >
+          <a className="transition hover:text-blue-300" href="#about">
+            About
+          </a>
+          <a className="transition hover:text-blue-300" href="#features">
+            Features
+          </a>
+          <a className="transition hover:text-blue-300" href="#pricing">
+            Pricing
+          </a>
         </nav>
 
         {/* Button */}
