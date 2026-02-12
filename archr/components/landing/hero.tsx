@@ -64,6 +64,7 @@ export default function Hero() {
             <button className="rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:cursor-pointer hover:from-blue-300 hover:via-blue-150 hover:to-blue-500 [box-shadow:inset_0_2px_6px_rgba(255,255,255,0.25),inset_0_-6px_10px_rgba(0,0,0,0.25),0_12px_30px_rgba(59,130,246,0.35)] max-sm:px-4">
               Join the waitlist
             </button>
+            
             <button className="rounded-full bg-linear-to-b from-white/20 via-white/10 to-white/5 px-8 py-3 text-sm font-semibold text-white/90 shadow-lg shadow-white/10 ring-1 ring-inset ring-white/20 transition hover:cursor-pointer hover:from-white/30 hover:via-white/15 hover:to-white/10 [box-shadow:inset_0_2px_6px_rgba(255,255,255,0.18),inset_0_-6px_10px_rgba(0,0,0,0.2),0_10px_24px_rgba(15,23,42,0.35)] max-sm:px-4">
               See how it works
             </button>
