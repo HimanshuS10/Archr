@@ -2,6 +2,7 @@ import About from "@/components/landing/about";
 import DemoVideo from "@/components/landing/demo-video";
 import Footer from "@/components/landing/footer";
 import Hero from "@/components/landing/hero";
+import HowItWorks from "@/components/landing/howitwork";
 import Waitlist from "@/components/landing/waitlist";
 
 export default function Home() {
@@ -11,7 +12,12 @@ export default function Home() {
         <Hero />
         <DemoVideo />
         <About />
-        <Waitlist />
+        <div className="relative text-white">
+          <HowItWorks />
+        </div>
+        <Waitlist
+        
+        />
       </section>
       <Footer />
     </main>

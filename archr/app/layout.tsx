@@ -20,10 +20,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${raleway.className} ${raleway.variable} antialiased`}>
-        {children}
-      </body>
-    </html>
+      <html lang="en">
+        <body
+          className={`${raleway.className} ${raleway.variable} antialiased`}
+        >
+          {children}
+        </body>
+      </html>
   );
 }

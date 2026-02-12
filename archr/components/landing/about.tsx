@@ -4,14 +4,14 @@ export default function About() {
       id="about"
       className="relative px-6 pb-24 text-white"
     >
-      <div className="pointer-events-none absolute inset-0 z-20">
+      <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-x-0 bottom-0 h-48 bg-linear-to-t from-[#060b1a] to-transparent" />
         <div className="absolute left-1/2 top-10 h-64 w-200 -translate-x-1/2 rounded-full bg-blue-500/10 blur-3xl" />
       </div>
 
       <div className="relative mx-auto w-full max-w-5xl">
         <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-          About Archr
+          About Archr 
         </p>
         <h2 className="mt-4 text-3xl font-semibold text-white sm:text-4xl">
           Your schedule adapts before you even notice.
