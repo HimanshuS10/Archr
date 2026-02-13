@@ -39,7 +39,7 @@ export default function HowItWorks() {
           }
         });
       },
-      { threshold: 0.6 }
+      { threshold: 0.6 },
     );
 
     cards.forEach((card) => observer.observe(card));
@@ -69,13 +69,6 @@ export default function HowItWorks() {
         </p>
 
         <div className="mt-12 flex gap-8">
-          <div className="relative hidden w-16 items-start justify-center md:flex">
-            <div className="absolute left-1/2 top-0 h-full w-[2px] -translate-x-1/2 bg-white/10" />
-            <div
-              className="absolute left-1/2 top-0 w-[2px] -translate-x-1/2 rounded-full bg-blue-400 transition-all duration-700"
-              style={{ height: `${(activeIndex + 1) * 33.3}%` }}
-            />
-          </div>
 
           <div className="flex-1 space-y-6">
             {steps.map((step, index) => (

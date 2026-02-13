@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   title: "Archr - AI Calendar Optimizer",
   description:
     "Archr helps students auto-schedule coursework by parsing syllabi, syncing calendars, and re-optimizing when plans change.",
+  icons: {
+    icon: "/Logo.png",
+  },
 };
 
 export default function RootLayout({
