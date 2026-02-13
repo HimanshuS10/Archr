@@ -8,7 +8,7 @@ import Waitlist from "@/components/landing/waitlist";
 export default function Home() {
   return (
     <main>
-      <section className="relative min-h-screen overflow-hidden bg-[#060b1a] text-white">
+      <section className="relative min-h-screen overflow-hidden bg-black text-white">
         <Hero />
         <DemoVideo />
         <About />
