@@ -28,15 +28,21 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     const redirectTo = `${window.location.origin}/dashboard`;
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo },
+      options: {
+        redirectTo,
+        scopes: "https://www.googleapis.com/auth/calendar",
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
     });
 
     if (error) {
-      console.error("Google Error sign in");
-    } else {
-        
+      console.error("Google sign-in error:", error.message);
     }
   };
 
@@ -77,12 +83,7 @@ export default function LoginPage() {
                 onClick={handleGoogleSignIn}
                 className="flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/80 transition hover:border-white/30 hover:cursor-pointer"
               >
-                <Image
-                  src="/Google.png"
-                  alt="Google"
-                  width={17}
-                  height={17}
-                />
+                <Image src="/Google.png" alt="Google" width={17} height={17} />
                 Continue with Google
               </button>
             </div>
