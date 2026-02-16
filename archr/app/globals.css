@@ -1,5 +1,8 @@
 @import "tailwindcss";
 @import "shadcn/tailwind.css";
+/* @import "https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.20/index.css"; */
+/* @import "https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@6.1.20/index.css";
+@import "https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.20/index.css"; */
 
 @custom-variant dark (&:is(.dark *));
 
@@ -125,4 +128,82 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* FullCalendar styling to match Google Calendar */
+.archr-calendar .fc {
+  --fc-border-color: rgba(148, 163, 184, 0.2);
+  --fc-page-bg-color: transparent;
+  --fc-now-indicator-color: #3b82f6;
+  --fc-today-bg-color: rgba(59, 130, 246, 0.08);
+  --fc-event-bg-color: #3b82f6;
+  --fc-event-border-color: #3b82f6;
+  --fc-event-text-color: #ffffff;
+  --fc-list-event-hover-bg-color: rgba(59, 130, 246, 0.12);
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+.archr-calendar .fc .fc-toolbar-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.archr-calendar .fc .fc-button {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #e2e8f0;
+  text-transform: capitalize;
+  padding: 0.35rem 0.6rem;
+}
+
+.archr-calendar .fc .fc-button:hover,
+.archr-calendar .fc .fc-button:focus {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #ffffff;
+}
+
+.archr-calendar .fc .fc-button-primary:not(:disabled).fc-button-active {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.7);
+  color: #ffffff;
+}
+
+.archr-calendar .fc .fc-col-header-cell-cushion {
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
+.archr-calendar .fc .fc-timegrid-slot-label,
+.archr-calendar .fc .fc-timegrid-axis-cushion {
+  color: #94a3b8;
+  font-size: 0.7rem;
+}
+
+.archr-calendar .fc .fc-daygrid-day-number,
+.archr-calendar .fc .fc-timegrid-axis {
+  color: #cbd5f5;
+}
+
+.archr-calendar .fc .fc-scrollgrid,
+.archr-calendar .fc .fc-scrollgrid-section > td {
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.archr-calendar .fc .fc-event {
+  border-radius: 8px;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.2);
+}
+
+.archr-calendar .fc .fc-timegrid-now-indicator-line {
+  border-color: #3b82f6;
+  border-width: 2px;
 }
