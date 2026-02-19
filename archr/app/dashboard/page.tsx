@@ -1,11 +1,14 @@
 "use client";
 
 import Sidebar from "@/components/dashboard/Sidebar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import CalendarView from "@/components/dashboard/CalendarView";
+import Dashboard from "@/components/dashboard/Dashboard";
 
 const Home = () => {
+  const [collapsed, setCollapsed] = useState(false);
+  const [hoverOpen, setHoverOpen] = useState(false);
+  const isExpanded = !collapsed || hoverOpen;
   useEffect(() => {
     const getSession = async () => {
       const { data } = await supabase.auth.getSession();
@@ -18,15 +21,15 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Sidebar />
-      <main className="ml-[260px] min-h-screen px-8 py-10">
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <p className="mt-2 text-sm text-white/60">
-            <CalendarView />
-          </p>
-      </main>
+      <Sidebar
+        collapsed={!isExpanded}
+        onToggle={() => setCollapsed((prev) => !prev)}
+        onHoverOpen={() => setHoverOpen(true)}
+        onHoverClose={() => setHoverOpen(false)}
+      />
+      <Dashboard isExpanded={isExpanded} />
     </div>
   );
-};
+}
 
 export default Home;

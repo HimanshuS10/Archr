@@ -45,7 +45,7 @@ export default function Hero() {
       </div>
 
       {/* Foreground Content */}
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-10 text-center">
+      <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-10 text-center">
         <Navbar />
 
         <div className="flex flex-1 flex-col items-center justify-center py-24">
