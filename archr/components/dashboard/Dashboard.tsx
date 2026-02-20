@@ -1,8 +1,6 @@
 import CalendarView, {
   CalendarHandle,
 } from "@/components/dashboard/CalendarView";
-import { Calendar03Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useRef, useState } from "react";
 
 type DashboardProps = {
@@ -11,7 +9,7 @@ type DashboardProps = {
 
 function Dashboard({ isExpanded }: DashboardProps) {
   const calendarRef = useRef<CalendarHandle | null>(null);
-  const [title, setTitle] = useState("Calendar");
+  const [title, setTitle] = useState("");
   const [activeView, setActiveView] = useState<
     "dayGridMonth" | "timeGridWeek" | "timeGridDay"
   >("timeGridWeek");
@@ -25,17 +23,10 @@ function Dashboard({ isExpanded }: DashboardProps) {
 
   return (
     <main
-      className="max-h-screen px-8 py-10 transition-[margin] duration-300"
+      className="h-screen overflow-hidden px-8 pt-2 pb-3 transition-[margin] duration-300"
       style={{ marginLeft: isExpanded ? 260 : 70 }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <HugeiconsIcon icon={Calendar03Icon} />
-          <h1 className="text-2xl font-semibold">Calendar - </h1>
-          <h1 className="text-2xl font-light">{title}</h1>
-        </div>
-      </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -51,6 +42,7 @@ function Dashboard({ isExpanded }: DashboardProps) {
           >
             &gt;
           </button>
+          <p className="px-1 text-sm font-medium text-white/80">{title}</p>
           <button
             type="button"
             onClick={() => calendarRef.current?.today()}
@@ -82,7 +74,7 @@ function Dashboard({ isExpanded }: DashboardProps) {
           ))}
         </div>
       </div>
-      <div className="mt-6">
+      <div className="mt-2 h-[calc(100vh-5.75rem)]">
         <CalendarView ref={calendarRef} onTitleChange={setTitle} />
       </div>
     </main>

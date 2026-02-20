@@ -207,3 +207,39 @@
   border-color: #3b82f6;
   border-width: 2px;
 }
+
+.archr-calendar .fc .fc-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+}
+
+.archr-calendar .fc .fc-scroller::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.archr-calendar .fc .fc-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.archr-calendar .fc .fc-scroller::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(148, 163, 184, 0.65),
+    rgba(100, 116, 139, 0.7)
+  );
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.archr-calendar .fc .fc-scroller::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(203, 213, 225, 0.8),
+    rgba(148, 163, 184, 0.8)
+  );
+}
+
+.archr-calendar .fc .fc-scroller::-webkit-scrollbar-button {
+  display: none;
+}
