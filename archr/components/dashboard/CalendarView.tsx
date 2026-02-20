@@ -52,7 +52,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
         scopes: "https://www.googleapis.com/auth/calendar",
         queryParams: {
           access_type: "offline",
@@ -246,7 +246,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
   }));
 
   return (
-    <div className="archr-calendar rounded-3xl border border-white/10 bg-[#131314] p-6 backdrop-blur-md">
+    <div className="archr-calendar h-full rounded-3xl border border-white/10 bg-[#131314] p-4 backdrop-blur-md">
       {/* <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-white">Your Calendar</h2>
@@ -274,7 +274,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
       ) : error ? (
         <div className="text-sm text-red-300">{error}</div>
       ) : (
-        <div className="h-[350px] overflow-auto">
+        <div className="h-full">
           <FullCalendar
             ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -286,7 +286,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
             selectMirror
             select={openCreate}
             eventClick={openEdit}
-            height="600px"
+            height="100%"
           />
         </div>
       )}
