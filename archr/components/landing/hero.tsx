@@ -51,7 +51,7 @@ export default function Hero() {
         <div className="flex flex-1 flex-col items-center justify-center py-24">
           <div className="flex max-w-full flex-wrap items-center justify-center gap-3 rounded-full bg-white/5 px-3 py-2 sm:px-4">
             <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50">
+            <p className="text-xs uppercase tracking-[0.4em] text-white/50 max-sm:text-[10px]">
               AI Powered Productivity Assistant
             </p>
           </div>
