@@ -67,11 +67,11 @@ export default function Hero() {
           </p>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <button className="rounded-full bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600 px-8 py-3 text-sm font-semibold text-white transition hover:scale-105">
+            <button className="rounded-full bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600 px-8 py-3 text-sm font-semibold text-white transition hover:scale-105 hover:cursor-pointer">
               Join the waitlist
             </button>
 
-            <button className="rounded-full bg-white/10 px-8 py-3 text-sm font-semibold text-white transition hover:bg-white/20">
+            <button className="rounded-full bg-white/10 px-8 py-3 text-sm font-semibold text-white transition hover:bg-white/20 hover:cursor-pointer">
               See how it works
             </button>
           </div>
