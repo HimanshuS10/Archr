@@ -13,13 +13,16 @@ import {
 } from "@hugeicons/core-free-icons";
 
 
-const navItems = ["Home", "Events", "Tasks"];
+const navItems: Tab[] = ["Home", "Events", "Tasks"];
+type Tab = "Home" | "Events" | "Tasks";
 
 type SidebarProps = {
   collapsed: boolean;
   onToggle: () => void;
   onHoverOpen: () => void;
   onHoverClose: () => void;
+  activeTab: Tab;
+  onTabChange: (tab: Tab) => void;
 };
 
 export default function Sidebar({
@@ -27,6 +30,8 @@ export default function Sidebar({
   onToggle,
   onHoverOpen,
   onHoverClose,
+  activeTab,
+  onTabChange,
 }: SidebarProps) {
   const router = useRouter();
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
@@ -119,8 +124,9 @@ export default function Sidebar({
           <button
             key={item}
             type="button"
+            onClick={() => onTabChange(item)}
             className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-left transition ${
-              index === 0
+              item === activeTab
                 ? "bg-blue-500/15 text-blue-200 ring-1 ring-inset ring-blue-400/30"
                 : "text-white/70 hover:bg-white/5 hover:text-white"
             }`}

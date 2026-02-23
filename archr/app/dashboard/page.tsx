@@ -4,11 +4,15 @@ import Sidebar from "@/components/dashboard/Sidebar";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Dashboard from "@/components/dashboard/Dashboard";
+import Events from "@/components/dashboard/Events";
+import Tasks from "@/components/dashboard/Tasks";
 
 const Home = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [hoverOpen, setHoverOpen] = useState(false);
   const isExpanded = !collapsed || hoverOpen;
+  const [activeTab, setActiveTab] = useState<"Home" | "Events" | "Tasks">("Home");
+
   useEffect(() => {
     const getSession = async () => {
       const { data } = await supabase.auth.getSession();
@@ -26,8 +30,14 @@ const Home = () => {
         onToggle={() => setCollapsed((prev) => !prev)}
         onHoverOpen={() => setHoverOpen(true)}
         onHoverClose={() => setHoverOpen(false)}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
-      <Dashboard isExpanded={isExpanded} />
+
+      {activeTab === "Home" && <Dashboard isExpanded={isExpanded} />}
+      {activeTab === "Events" && <Events isExpanded={isExpanded} />}
+      {activeTab === "Tasks" && <Tasks isExpanded={isExpanded} />}
+
     </div>
   );
 }

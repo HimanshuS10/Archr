@@ -56,7 +56,6 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
         scopes: "https://www.googleapis.com/auth/calendar",
         queryParams: {
           access_type: "offline",
-          prompt: "consent",
         },
       },
     });
@@ -92,38 +91,32 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
     setSaving(true);
     setError(null);
 
-    const { data, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !data.session?.provider_token) {
-      setSaving(false);
-      setNeedsConnect(true);
-      setError("Google Calendar not connected.");
-      return;
-    }
-
-    const token = data.session.provider_token;
     const payload = {
-      summary: formTitle,
-      start: { dateTime: new Date(formStart).toISOString() },
-      end: { dateTime: new Date(formEnd || formStart).toISOString() },
+      title: formTitle,
+      start: formStart,
+      end: formEnd || formStart,
     };
 
     try {
       const url = editingId
-        ? `https://www.googleapis.com/calendar/v3/calendars/primary/events/${editingId}`
-        : "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+        ? `/api/google/events/${editingId}`
+        : "/api/google/events";
       const method = editingId ? "PATCH" : "POST";
 
       const response = await fetch(url, {
         method,
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to save event.");
+        if (response.status === 401) {
+          setNeedsConnect(true);
+        }
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error ?? "Failed to save event.");
       }
 
       const saved = await response.json();
@@ -155,47 +148,17 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
       setError(null);
       setNeedsConnect(false);
 
-      const { data, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        setError("Unable to read session.");
-        setLoading(false);
-        return;
-      }
-
-      const token = data.session?.provider_token;
-      if (!token) {
-        setNeedsConnect(true);
-        setError("Google Calendar not connected.");
-        setLoading(false);
-        return;
-      }
-
       try {
-        const response = await fetch(
-          "https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=" +
-            encodeURIComponent(new Date().toISOString()),
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const response = await fetch("/api/google/events?maxResults=200&windowDays=120");
 
         if (!response.ok) {
-          let message = `Google Calendar API error (${response.status}).`;
-          try {
-            const errorPayload = await response.json();
-            const apiMessage = errorPayload?.error?.message;
-            if (apiMessage) {
-              message = apiMessage;
-            }
-          } catch {
-          }
-
-          if (response.status === 401 || response.status === 403) {
+          if (response.status === 401) {
             setNeedsConnect(true);
           }
-          throw new Error(message);
+          const payload = await response.json().catch(() => null);
+          throw new Error(
+            payload?.error ?? `Google Calendar API error (${response.status}).`,
+          );
         }
 
         const payload = await response.json();
@@ -259,9 +222,8 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
       ) : needsConnect ? (
         <div className="space-y-3">
           <p className="text-sm text-white/70">
-            Connect your Google Calendar to sync events. If you already
-            connected, make sure the Google provider includes Calendar scope and
-            re-consent.
+            Connect your Google Calendar to sync events. If this is your first
+            time after the token migration, one reconnect may be required.
           </p>
           <button
             type="button"

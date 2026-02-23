@@ -35,7 +35,6 @@ export default function SignUpPage() {
         scopes: "https://www.googleapis.com/auth/calendar",
         queryParams: {
           access_type: "offline",
-          prompt: "consent",
         },
       },
     });
