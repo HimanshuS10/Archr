@@ -23,6 +23,12 @@ type Task = {
   updated_at?: string;
 };
 
+type ScheduleSummary = {
+  createdCount: number;
+  unscheduledMinutes: number;
+  scheduledCount: number;
+};
+
 const priorityClasses: Record<TaskPriority, string> = {
   low: "bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-400/30",
   medium: "bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/30",
@@ -37,6 +43,10 @@ export default function Tasks({ isExpanded }: TasksProp) {
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
+  const [scheduleSummaries, setScheduleSummaries] = useState<
+    Record<string, ScheduleSummary>
+  >({});
 
   // Form state
   const [title, setTitle] = useState("");
@@ -88,8 +98,39 @@ export default function Tasks({ isExpanded }: TasksProp) {
         return;
       }
 
-      setTasks((data ?? []) as Task[]);
+      const loadedTasks = (data ?? []) as Task[];
+      setTasks(loadedTasks);
       setLoading(false);
+
+      const { data: sessions, error: sessionsError } = await supabase
+        .from("study_sessions")
+        .select("task_id")
+        .eq("user_id", userData.user.id)
+        .eq("status", "scheduled");
+
+      if (!sessionsError) {
+        const counts = (sessions ?? []).reduce<Record<string, number>>(
+          (acc, row) => {
+            const taskId = (row as { task_id: string }).task_id;
+            acc[taskId] = (acc[taskId] ?? 0) + 1;
+            return acc;
+          },
+          {},
+        );
+
+        setScheduleSummaries((prev) => {
+          const next: Record<string, ScheduleSummary> = { ...prev };
+          for (const task of loadedTasks) {
+            const previous = prev[task.id];
+            next[task.id] = {
+              createdCount: previous?.createdCount ?? 0,
+              unscheduledMinutes: previous?.unscheduledMinutes ?? 0,
+              scheduledCount: counts[task.id] ?? 0,
+            };
+          }
+          return next;
+        });
+      }
     };
 
     loadTasks();
@@ -160,6 +201,52 @@ export default function Tasks({ isExpanded }: TasksProp) {
     }
 
     setTasks((prev) => prev.filter((task) => task.id !== id));
+  };
+
+  const handleGenerateSchedule = async (taskId: string, regenerate = false) => {
+    if (!userId) return;
+
+    setSchedulingTaskId(taskId);
+    setError("");
+
+    const response = await fetch("/api/ai/schedule", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ taskId, regenerate }),
+    });
+
+    setSchedulingTaskId(null);
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setError(body?.error ?? "Failed to generate schedule.");
+      return;
+    }
+
+    const result = (await response.json()) as {
+      created_count: number;
+      unscheduled_minutes: number;
+    };
+
+    const { data: sessions, error: sessionsError } = await supabase
+      .from("study_sessions")
+      .select("task_id")
+      .eq("user_id", userId)
+      .eq("task_id", taskId)
+      .eq("status", "scheduled");
+
+    const scheduledCount = sessionsError ? 0 : (sessions ?? []).length;
+
+    setScheduleSummaries((prev) => ({
+      ...prev,
+      [taskId]: {
+        createdCount: result.created_count ?? 0,
+        unscheduledMinutes: result.unscheduled_minutes ?? 0,
+        scheduledCount,
+      },
+    }));
   };
 
   return (
@@ -245,6 +332,24 @@ export default function Tasks({ isExpanded }: TasksProp) {
 
                     <button
                       type="button"
+                      onClick={() => handleGenerateSchedule(task.id, false)}
+                      disabled={schedulingTaskId === task.id}
+                      className="rounded-full border border-blue-400/30 px-3 py-1 text-xs text-blue-200 transition hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {schedulingTaskId === task.id ? "Scheduling..." : "Generate"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateSchedule(task.id, true)}
+                      disabled={schedulingTaskId === task.id}
+                      className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/80 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Regenerate
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => removeTask(task.id)}
                       className="rounded-full border border-red-400/30 px-3 py-1 text-xs text-red-300 transition hover:bg-red-500/10"
                     >
@@ -261,6 +366,18 @@ export default function Tasks({ isExpanded }: TasksProp) {
                     {task.notes ? <p className="mt-1">{task.notes}</p> : null}
                   </div>
                 )}
+
+                {scheduleSummaries[task.id] ? (
+                  <div className="mt-3 rounded-lg border border-blue-400/20 bg-blue-500/10 px-3 py-2 text-xs text-blue-100">
+                    <p>
+                      Sessions scheduled: {scheduleSummaries[task.id].scheduledCount}
+                    </p>
+                    <p>
+                      Last run created: {scheduleSummaries[task.id].createdCount} | Unscheduled:{" "}
+                      {scheduleSummaries[task.id].unscheduledMinutes} min
+                    </p>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
