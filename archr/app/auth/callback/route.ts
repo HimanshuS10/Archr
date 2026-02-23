@@ -9,7 +9,25 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (error) {
+      return NextResponse.redirect(`${url.origin}/login`);
+    }
+
+    const refreshToken = data.session?.provider_refresh_token;
+    const userId = data.user?.id;
+
+    if (refreshToken && userId) {
+      await supabase.from("google_tokens").upsert(
+        {
+          user_id: userId,
+          refresh_token: refreshToken,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+    }
   }
 
   return NextResponse.redirect(`${url.origin}${safeNext}`);
