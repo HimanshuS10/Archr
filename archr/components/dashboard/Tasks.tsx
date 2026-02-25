@@ -76,7 +76,8 @@ export default function Tasks({ isExpanded }: TasksProp) {
       setLoading(true);
       setError("");
 
-      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
       if (userError || !userData.user) {
         setError("You must be logged in to view tasks.");
         setLoading(false);
@@ -170,6 +171,35 @@ export default function Tasks({ isExpanded }: TasksProp) {
     setTasks((prev) => [data as Task, ...prev]);
     setIsModalOpen(false);
     resetForm();
+
+    const createdTask = data as Task;
+    setTasks((prev) => [createdTask, ...prev]);
+
+    const scheduleRes = await fetch("api/ai/schedule", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ taskId: createdTask.id, regenerate: false }),
+    });
+
+    if (scheduleRes.ok) {
+      const result = await scheduleRes.json();
+      setScheduleSummaries((prev) => ({
+        ...prev,
+        [createdTask.id]: {
+          createdCount: result.created_count ?? 0,
+          unscheduledMinutes: result.unscheduled_minutes ?? 0,
+          scheduledCount: result.created_count ?? 0,
+        },
+      }));
+    } else {
+      const body = await scheduleRes.json().catch(() => null);
+      setError(body?.error ?? "Task created, but schedule generation failed.");
+    }
+
+    setIsModalOpen(false);
+    resetForm();
   };
 
   const markDone = async (id: string) => {
@@ -193,7 +223,10 @@ export default function Tasks({ isExpanded }: TasksProp) {
   const removeTask = async (id: string) => {
     setError("");
 
-    const { error: deleteError } = await supabase.from("tasks").delete().eq("id", id);
+    const { error: deleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("id", id);
 
     if (deleteError) {
       setError(deleteError.message);
@@ -336,7 +369,9 @@ export default function Tasks({ isExpanded }: TasksProp) {
                       disabled={schedulingTaskId === task.id}
                       className="rounded-full border border-blue-400/30 px-3 py-1 text-xs text-blue-200 transition hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {schedulingTaskId === task.id ? "Scheduling..." : "Generate"}
+                      {schedulingTaskId === task.id
+                        ? "Scheduling..."
+                        : "Generate"}
                     </button>
 
                     <button
@@ -370,10 +405,12 @@ export default function Tasks({ isExpanded }: TasksProp) {
                 {scheduleSummaries[task.id] ? (
                   <div className="mt-3 rounded-lg border border-blue-400/20 bg-blue-500/10 px-3 py-2 text-xs text-blue-100">
                     <p>
-                      Sessions scheduled: {scheduleSummaries[task.id].scheduledCount}
+                      Sessions scheduled:{" "}
+                      {scheduleSummaries[task.id].scheduledCount}
                     </p>
                     <p>
-                      Last run created: {scheduleSummaries[task.id].createdCount} | Unscheduled:{" "}
+                      Last run created:{" "}
+                      {scheduleSummaries[task.id].createdCount} | Unscheduled:{" "}
                       {scheduleSummaries[task.id].unscheduledMinutes} min
                     </p>
                   </div>

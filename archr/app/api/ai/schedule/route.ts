@@ -107,6 +107,28 @@ function buildDailyFreeIntervals(
 
 function allocateSlots(freeIntervals: Interval[], totalMinutes: number) {
   const slots: Slot[] = [];
+
+  if (totalMinutes <= 120) {
+    for (const gap of freeIntervals) {
+      const gapMinutes = Math.floor(
+        (gap.end.getTime() - gap.start.getTime()) / (1000 * 60),
+      );
+
+      if (gapMinutes >= totalMinutes) {
+        const slotEnd = new Date(gap.start.getTime() + totalMinutes * 60 * 1000);
+        slots.push({
+          start: new Date(gap.start),
+          end: slotEnd,
+          durationMinutes: totalMinutes,
+        });
+        return { slots, unscheduledMinutes: 0 };
+      }
+    }
+
+    return { slots: [], unscheduledMinutes: totalMinutes };
+  }
+
+  const chunkSize = 90; 
   let remaining = totalMinutes;
 
   for (const gap of freeIntervals) {
@@ -118,13 +140,19 @@ function allocateSlots(freeIntervals: Interval[], totalMinutes: number) {
     );
 
     while (gapMinutes > 0 && remaining > 0) {
-      const chunk = Math.min(CHUNK_MINUTES, remaining, gapMinutes);
+      // Keep chunk sizes stable; allow last chunk to be shorter
+      const chunk = Math.min(chunkSize, remaining, gapMinutes);
+
+      // optional guard: don't create tiny fragments unless it's the final remainder
+      if (chunk < 30 && remaining > chunk) break;
+
       const slotEnd = new Date(cursor.getTime() + chunk * 60 * 1000);
       slots.push({
         start: new Date(cursor),
         end: slotEnd,
         durationMinutes: chunk,
       });
+
       cursor = slotEnd;
       gapMinutes -= chunk;
       remaining -= chunk;
