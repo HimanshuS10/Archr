@@ -3,8 +3,10 @@
 import { supabase } from "@/lib/supabase";
 import { useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 export default function SignUpPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -14,15 +16,26 @@ export default function SignUpPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { error, data } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name } },
+      options: { data: { name },
+      emailRedirectTo: `${window.location.origin}/login?next=/onboarding`,
+    },
     });
 
     setIsLoading(false);
 
-    if (error) console.log(error);
+    if (error) {
+      console.error(error.message);
+      return;
+    }
+
+    if (data.session) {
+      router.push("/onboarding")
+      return;
+    }
+
     else console.log("User was created");
   };
 

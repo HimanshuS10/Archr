@@ -1,75 +1,132 @@
 "use client";
 
-import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+const QUESTIONS = [
+  {
+    id: "role",
+    label: "What best describes you?",
+    placeholder: "Student, Founder, Engineer...",
+  },
+  {
+    id: "goal",
+    label: "What is your main goal with Archr?",
+    placeholder: "Stay organized, reduce stress...",
+  },
+  {
+    id: "workStyle",
+    label: "How do you like to plan your day?",
+    placeholder: "Time-blocking, to-do lists...",
+  },
+];
+
 
 export default function OnboardingPage() {
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState("");
+  const router = useRouter();
 
-  const handleConnectGoogleCalendar = async () => {
-    setIsConnecting(true);
-    setError("");
+  const [index, setIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({
+    role: "",
+    goal: "",
+    workStyle: "",
+  });
 
-    const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
-    
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        scopes: "https://www.googleapis.com/auth/calendar",
-        queryParams: {
-          access_type: "offline",
-        },
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const current = QUESTIONS[index];
+  const value = answers[current.id] ?? "";
+  
+  const setAnswer = (val: string) => {
+    setAnswers((prev) => ({...prev, [current.id]: val}));
+  };
+
+
+  const next = async () => {
+    if (!value.trim()) {
+      return;
+    }
+
+    if (index < QUESTIONS.length - 1) {
+      setIndex((p) => p + 1);
+      return;
+    }
+
+    setSaveError("");
+    setIsSaving(true);
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      setIsSaving(false);
+      setSaveError("Unable to verify your session. Please log in again.");
+      console.error("Failed to get authenticated user:", userError?.message);
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        onboarding_answers: answers,
+        onboarding_questions_complete: true,
+        onboarding_questions_completed_at: new Date().toISOString(),
+        onboarding_complete: true,
       },
     });
 
+    setIsSaving(false);
+
     if (error) {
-      setError("Could not connect Google Calendar. Please try again.");
-      setIsConnecting(false);
+      setSaveError("Could not save onboarding answers. Please try again.");
+      console.error("Failed to save onboarding answers:", error.message);
       return;
     }
+
+    router.push("/onboarding/connect-calendar");
+
   };
-
+  
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#05060f] px-6 text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(59,130,246,0.2),transparent_45%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_85%,rgba(59,130,246,0.18),transparent_48%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/35 via-transparent to-transparent" />
+    <main className="min-h-screen bg-[#05060f] text-white flex items-center justify-center px-6">
+      <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-[#0b0d16] p-8">
+        <p className="text-sm text-white/60">
+          Question {index + 1} of {QUESTIONS.length}
+        </p>
 
-      <div className="relative w-full max-w-xl rounded-3xl border border-white/10 bg-[#0b0d16]/95 p-8 backdrop-blur-md sm:p-10">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <div className="inline-flex items-center gap-3 rounded-full px-4 py-2">
-            <Image src="/Logo.png" alt="Archr logo" width={38} height={38} />
-            <span className="text-xl font-semibold tracking-wide">Archr</span>
-          </div>
+        <h1 className="mt-3 text-2xl font-semibold">{current.label}</h1>
 
-          <h1 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Connect Google Calendar
-          </h1>
-          <p className="mt-3 max-w-md text-sm text-white/65 sm:text-base">
-            Link your calendar to let Archr auto-plan tasks and events around your
-            real schedule.
-          </p>
+        <textarea
+          value={value}
+          onChange={(e) => setAnswer(e.target.value)}
+          placeholder={current.placeholder}
+          className="mt-4 w-full min-h-28 rounded-xl border border-white/15 bg-white/5 p-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+        />
+
+        <div className="mt-6 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setIndex((p) => Math.max(0, p - 1))}
+            disabled={index === 0}
+            className="rounded-full border border-white/15 px-4 py-2 text-sm disabled:opacity-40"
+          >
+            Back
+          </button>
+
+          <button
+            type="button"
+            onClick={next}
+            disabled={!value.trim() || isSaving}
+            className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold disabled:opacity-50"
+          >
+            {index === QUESTIONS.length - 1 ? (isSaving ? "Saving..." : "Continue") : "Next"}
+          </button>
         </div>
-
-        <button
-          type="button"
-          onClick={handleConnectGoogleCalendar}
-          disabled={isConnecting}
-          className={`w-full rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition ${
-            isConnecting ? "opacity-60 cursor-not-allowed" : "hover:cursor-pointer"
-          }`}
-        >
-          <span className="inline-flex items-center justify-center gap-2">
-            <Image src="/GoogleLogo.png" alt="Google logo" width={18} height={18} />
-            {isConnecting ? "Connecting..." : "Connect Google Calendar"}
-          </span>
-        </button>
-
-        {error ? <p className="mt-4 text-center text-sm text-red-400">{error}</p> : null}
-
+        {saveError ? (
+          <p className="mt-4 text-sm text-red-400">{saveError}</p>
+        ) : null}
       </div>
     </main>
   );
