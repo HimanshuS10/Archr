@@ -5,11 +5,22 @@ import Hero from "@/components/landing/hero";
 import HowItWorks from "@/components/landing/howitwork";
 import Waitlist from "@/components/landing/waitlist";
 import Navbar from "@/components/landing/navbar";
+import Feature from '@/components/landing/Feature';
+import Benefits from '@/components/landing/Benefits';
+import Pricing from '@/components/landing/Pricing';
+import FAQ from '@/components/landing/FAQ';
 
 export default function Home() {
   return (
     <main>
-      < Navbar /> 
+      <Navbar />
+      <Hero />
+      <Feature />
+      <Benefits />
+      <HowItWorks />
+      <Pricing />
+      <FAQ />
+      <Waitlist />
     </main>
   );
 }

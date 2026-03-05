@@ -1,52 +1,49 @@
 "use client";
+
 import Image from "next/image";
 
 export default function Navbar() {
   return (
-    <header className="fixed top-0 left-0 w-full z-50 py-4">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* Glassmorphic navbar container */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/20 px-8 py-4 ">
-          <div className="flex items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center gap-2">
-              <Image src="/Logo.png" alt="Archr" width={36} height={36} />
-              <span className="text-xl font-semibold text-gray-900" style={{ fontFamily: "Inter, sans-serif" }}>
-                Archr
-              </span>
-            </div>
+    <header className="fixed top-0 left-0 z-50 w-full bg-white border-b border-gray-100">
+      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
 
-            {/* Links */}
-            <nav className="hidden items-center gap-8 md:flex">
-              <a 
-                className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors duration-200"
-                href="#features"
-              >
-                Features
-              </a>
-              <a 
-                className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors duration-200"
-                href="#pricing"
-              >
-                Pricing
-              </a>
-              <a 
-                className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors duration-200"
-                href="#faq"
-              >
-                FAQ
-              </a>
-            </nav>
-
-            {/* Join waitlist button */}
-            <a
-              href="#waitlist"
-              className="bg-gray-900 text-white text-sm font-semibold px-6 py-2 rounded-full hover:bg-gray-800 transition-colors duration-200"
-            >
-              Join waitlist
-            </a>
-          </div>
+        {/* Logo + Name */}
+        <div className="flex items-center gap-2">
+          <Image
+            src="/Logo.png"
+            alt="Archr Logo"
+            width={32}
+            height={32}
+          />
+          <a
+            href="#"
+            className="text-xl font-semibold tracking-tight text-black"
+          >
+            Archr
+          </a>
         </div>
+
+        <nav className="hidden items-center gap-8 md:flex">
+          <a className="text-sm font-semibold text-black/70 transition hover:text-black" href="#features">
+            Features
+          </a>
+          <a className="text-sm font-semibold text-black/70 transition hover:text-black" href="#pricing">
+            Pricing
+          </a>
+          <a className="text-sm font-semibold text-black/70 transition hover:text-black" href="#faq">
+            FAQ
+          </a>
+          <a className="text-sm font-semibold text-white transition hover:text-white bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-3 py-2 rounded-4xl hover:from-blue-300 hover:via-blue-400 hover:to-blue-500" href="#waitlist">
+            Join Waitlist
+          </a>
+        </nav>
+
+        <a
+          href="#waitlist"
+          className="text-sm text-black/70 transition hover:text-black md:hidden"
+        >
+          Join Waitlist
+        </a>
       </div>
     </header>
   );

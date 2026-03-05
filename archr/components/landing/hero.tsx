@@ -1,82 +1,76 @@
 "use client";
 
-import LightRays from "@/components/LightRays";
-import Navbar from "@/components/landing/navbar";
-
 export default function Hero() {
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-black">
-      
-      {/* Background Rays */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0">
-          <LightRays
-            raysOrigin="top-left"
-            raysColor="#5683e9"
-            raysSpeed={0.1}
-            lightSpread={1.0}
-            rayLength={4}
-            pulsating={false}
-            fadeDistance={5}
-            saturation={0}
-            followMouse
-            mouseInfluence={0}
-            noiseAmount={0.5}
-            distortion={0.05}
-          />
-        </div>
-
-        <div className="absolute inset-0">
-          <LightRays
-            raysOrigin="top-right"
-            raysColor="#5683e9"
-            raysSpeed={0.1}
-            lightSpread={1.0}
-            rayLength={4  }
-            pulsating={false}
-            fadeDistance={5}
-            saturation={0}
-            followMouse
-            mouseInfluence={0}
-            noiseAmount={0.5}
-            distortion={0.05}
-          />
-        </div>
-      </div>
-
-      {/* Foreground Content */}
-      <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-10 text-center">
-        <Navbar />
-
-        <div className="flex flex-1 flex-col items-center justify-center py-24">
-          <div className="flex max-w-full flex-wrap items-center justify-center gap-3 rounded-full bg-white/5 px-3 py-2 sm:px-4">
-            <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50 max-sm:text-[10px]">
-              AI Powered Productivity Assistant
-            </p>
-          </div>
-
-          <h1 className="mt-6 text-4xl font-bold tracking-tight leading-tight text-white sm:text-5xl md:text-6xl">
-            Stop fighting your calendar.
-            <span className="block text-blue-300">Own your time.</span>
+    <section className="w-full bg-white pt-28 pb-12">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6">
+        <div className="grid gap-10 lg:grid-cols-[1fr_360px] lg:items-start">
+          <h1 className="text-3xl leading-[1.05] font-medium tracking-tight text-black md:text-[57px]">
+            Plan Smarter,
+            <br />
+            Own Your Week
           </h1>
 
-          <p className="mt-6 max-w-xl text-base text-white/70 sm:text-lg">
-            Stop planning your week manually. Upload your deadlines, set your
-            priorities, and let AI rebalance your time automatically.
-          </p>
+          <div className="lg:pt-3 ">
+            <div className="text-left">
+              <p className="text-[17px] text-left font-semibold tracking-tighter leading-relaxed text-black/60">
+                Archr helps you auto-plan tasks around your real schedule, so
+                you always know what to do next.
+              </p>
+            </div>
+            <div className="mt-6 flex justify-start">
+              <a
+                href="#"
+                className="inline-flex items-center rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-300 hover:via-blue-400 hover:to-blue-500"
+              >
+                Learn More
+              </a>
+            </div>
+          </div>
+        </div>
 
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <button className="rounded-full bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600 px-8 py-3 text-sm font-semibold text-white transition hover:scale-105 hover:cursor-pointer">
-              Join the waitlist
-            </button>
+        <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-linear-to-b from-white to-[#ececec] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.08)] md:p-12">
+          <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-[220px_1fr_220px] md:items-center">
+            <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
+              <p className="text-xs text-black/40">This week</p>
+              <p className="mt-2 text-2xl font-semibold text-black">18 tasks</p>
+              <div className="mt-4 h-2 rounded-full bg-black/10">
+                <div className="h-2 w-2/3 rounded-full bg-blue-500" />
+              </div>
+            </div>
 
-            <button className="rounded-full bg-white/10 px-8 py-3 text-sm font-semibold text-white transition hover:bg-white/20 hover:cursor-pointer">
-              See how it works
-            </button>
+            <div className="rounded-[2rem] border border-black/10 bg-white p-6 shadow-[0_15px_35px_rgba(0,0,0,0.12)]">
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-sm font-medium text-black/60">Today</p>
+                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
+                  Focus mode
+                </span>
+              </div>
+              <div className="space-y-3">
+                <div className="rounded-xl bg-[#f4f6fb] px-4 py-3 text-sm text-black/80">
+                  09:00 - Deep work: Math assignment
+                </div>
+                <div className="rounded-xl bg-[#f4f6fb] px-4 py-3 text-sm text-black/80">
+                  11:30 - Team sync
+                </div>
+                <div className="rounded-xl bg-[#f4f6fb] px-4 py-3 text-sm text-black/80">
+                  15:00 - Project review
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm">
+              <p className="text-xs text-black/40">AI insight</p>
+              <p className="mt-2 text-base font-medium text-black">
+                Move writing block to 7:30 PM for better focus.
+              </p>
+              <button className="mt-4 w-full rounded-full border border-black/10 bg-black/5 px-3 py-2 text-sm text-black/70 transition hover:bg-black/10">
+                Apply suggestion
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

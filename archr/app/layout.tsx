@@ -6,6 +6,7 @@ import Navbar from "../components/landing/navbar";
 const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
@@ -24,7 +25,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} antialiased`}>        <Navbar />        {children}
+      <body className={`${inter.variable} ${inter.className} antialiased`}>
+        <Navbar />
+        {children}
       </body>
     </html>
   );
