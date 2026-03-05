@@ -1,48 +1,52 @@
 "use client";
-import { useEffect, useState } from "react";
 import Image from "next/image";
 
 export default function Navbar() {
-  const [show, setShow] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setShow(window.scrollY > 20);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   return (
-    <header className="fixed left-1/2 top-5 z-50 w-[calc(100%-2rem)] max-w-5xl -translate-x-1/2 transition-all duration-500">
-      <div
-        className={`flex items-center justify-between gap-6 rounded-full px-6 py-3 text-sm transition-all duration-300 ${
-          show
-            ? "border border-white/10 bg-white/5 backdrop-blur-md py-3 shadow-xl shadow-black/20"
-            : "border-transparent bg-transparent py-5"
-        }`}
-      >
-        {/* Logo */}
-        <div className="flex items-center gap-2 font-semibold text-white">
-          <Image src="/Logo.png" alt="Archr" width={40} height={40} />
-          <span className="text-2xl font-bold">Archr</span>
+    <header className="fixed top-0 left-0 w-full z-50 py-4">
+      <div className="max-w-4xl mx-auto px-4">
+        {/* Glassmorphic navbar container */}
+        <div className="bg-white/80 backdrop-blur-md border border-white/20 px-8 py-4 ">
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center gap-2">
+              <Image src="/Logo.png" alt="Archr" width={36} height={36} />
+              <span className="text-xl font-semibold text-gray-900" style={{ fontFamily: "Inter, sans-serif" }}>
+                Archr
+              </span>
+            </div>
+
+            {/* Links */}
+            <nav className="hidden items-center gap-8 md:flex">
+              <a 
+                className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors duration-200"
+                href="#features"
+              >
+                Features
+              </a>
+              <a 
+                className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors duration-200"
+                href="#pricing"
+              >
+                Pricing
+              </a>
+              <a 
+                className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors duration-200"
+                href="#faq"
+              >
+                FAQ
+              </a>
+            </nav>
+
+            {/* Join waitlist button */}
+            <a
+              href="#waitlist"
+              className="bg-gray-900 text-white text-sm font-semibold px-6 py-2 rounded-full hover:bg-gray-800 transition-colors duration-200"
+            >
+              Join waitlist
+            </a>
+          </div>
         </div>
-
-        {/* Links - Always visible, but color shifts slightly for readability */}
-        <nav
-          className={`hidden items-center gap-6 md:flex transition-colors ${show ? "text-white/80" : "text-white"}`}
-        >
-          <a className="transition hover:text-blue-300" href="#about">
-            About
-          </a>
-          <a className="transition hover:text-blue-300" href="#how">
-            How it works
-          </a>
-        </nav>
-
-        {/* Button */}
-        <button className="rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:cursor-pointer hover:scale-105 [box-shadow:inset_0_2px_6px_rgba(255,255,255,0.25),inset_0_-6px_10px_rgba(0,0,0,0.25),0_12px_30px_rgba(59,130,246,0.35)] sm:text-sm">
-          <a href="#waitlist">Join waitlist</a>
-        </button>
       </div>
     </header>
   );

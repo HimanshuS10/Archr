@@ -35,6 +35,15 @@ type CalendarViewProps = {
   onTitleChange?: (title: string) => void;
 };
 
+type RepeatValue =
+  | "none"
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "yearly"
+  | "custom";
+type CustomFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+
 const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
   function CalendarView({ onTitleChange }, ref) {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -48,10 +57,33 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
     const [formStart, setFormStart] = useState("");
     const [formEnd, setFormEnd] = useState("");
     const [saving, setSaving] = useState(false);
-    const [formRepeat, setFormRepeat] = useState<
-      "none" | "daily" | "weekly" | "monthly" | "yearly"
-    >("none");
+    const [formRepeat, setFormRepeat] = useState<RepeatValue>("none");
     const [formRepeatUntil, setFormRepeatUntil] = useState("");
+
+    const [customFrequency, setCustomFrequency] =
+      useState<CustomFrequency>("WEEKLY");
+    const [customInterval, setCustomInterval] = useState("1");
+    const [customByDay, setCustomByDay] = useState<string[]>([]);
+    const [customByMonthDay, setCustomByMonthDay] = useState("");
+    const [customCount, setCustomCount] = useState("");
+    const [customEndMode, setCustomEndMode] = useState<
+      "never" | "until" | "count"
+    >("never");
+
+    const weekdayOptions = [
+      { label: "Mon", value: "MO" },
+      { label: "Tue", value: "TU" },
+      { label: "Wed", value: "WE" },
+      { label: "Thu", value: "TH" },
+      { label: "Fri", value: "FR" },
+      { label: "Sat", value: "SA" },
+      { label: "Sun", value: "SU" },
+    ];
+    const toggleDay = (day: string) => {
+      setCustomByDay((prev) =>
+        prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
+      );
+    };
 
     const handleConnect = useCallback(async () => {
       await supabase.auth.signInWithOAuth({
@@ -91,6 +123,47 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
       setFormEnd("");
     }, []);
 
+    const loadEvents = useCallback(async () => {
+      setLoading(true);
+      setError(null);
+      setNeedsConnect(false);
+
+      try {
+        const response = await fetch(
+          "/api/google/events?maxResults=200&windowDays=120&pastDays=120",
+        );
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            setNeedsConnect(true);
+          }
+          const payload = await response.json().catch(() => null);
+          throw new Error(
+            payload?.error ?? `Google Calendar API error (${response.status}).`,
+          );
+        }
+
+        const payload = await response.json();
+        const mapped: CalendarEvent[] = (payload.items || []).map(
+          (item: any) => ({
+            id: item.id,
+            title: item.summary || "Untitled event",
+            start: item.start?.dateTime || item.start?.date,
+            end: item.end?.dateTime || item.end?.date,
+          }),
+        );
+
+        setEvents(mapped);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Could not load events.";
+        setError(message);
+        console.error("Calendar load error:", err);
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
     const handleSave = useCallback(async () => {
       if (!formTitle || !formStart) return;
       setSaving(true);
@@ -100,8 +173,24 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
         title: formTitle,
         start: formStart,
         end: formEnd || formStart,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
         repeat: formRepeat,
-        repeatUntil: formRepeatUntil || undefined,
+        repeatUntil:
+          formRepeat !== "none" && formRepeat !== "custom"
+            ? formRepeatUntil || undefined
+            : undefined,
+        repeatCustom:
+          formRepeat === "custom"
+            ? {
+                frequency: customFrequency,
+                interval: Math.max(1, Number(customInterval || "1")),
+                byDay: customByDay.length > 0 ? customByDay : undefined,
+                byMonthDay: customByMonthDay
+                  ? [Math.max(1, Math.min(31, Number(customByMonthDay)))]
+                  : undefined,
+                count: customCount ? Math.max(1, Number(customCount)) : undefined,
+              }
+            : undefined,
       };
 
       try {
@@ -126,20 +215,8 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
           throw new Error(body?.error ?? "Failed to save event.");
         }
 
-        const saved = await response.json();
-        const mapped: CalendarEvent = {
-          id: saved.id,
-          title: saved.summary || "Untitled event",
-          start: saved.start?.dateTime || saved.start?.date,
-          end: saved.end?.dateTime || saved.end?.date,
-        };
-
-        setEvents((prev) => {
-          if (editingId) {
-            return prev.map((item) => (item.id === editingId ? mapped : item));
-          }
-          return [...prev, mapped];
-        });
+        await response.json();
+        await loadEvents();
 
         closeModal();
       } catch (err) {
@@ -147,7 +224,21 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
       } finally {
         setSaving(false);
       }
-    }, [editingId, formEnd, formStart, formTitle, closeModal]);
+    }, [
+      editingId,
+      formEnd,
+      formStart,
+      formTitle,
+      formRepeat,
+      formRepeatUntil,
+      customFrequency,
+      customInterval,
+      customByDay,
+      customByMonthDay,
+      customCount,
+      loadEvents,
+      closeModal,
+    ]);
 
     const handleDelete = useCallback(async () => {
       if (!editingId) {
@@ -183,50 +274,8 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
     }, [editingId, closeModal]);
 
     useEffect(() => {
-      const loadEvents = async () => {
-        setLoading(true);
-        setError(null);
-        setNeedsConnect(false);
-
-        try {
-          const response = await fetch(
-            "/api/google/events?maxResults=200&windowDays=120",
-          );
-
-          if (!response.ok) {
-            if (response.status === 401) {
-              setNeedsConnect(true);
-            }
-            const payload = await response.json().catch(() => null);
-            throw new Error(
-              payload?.error ??
-                `Google Calendar API error (${response.status}).`,
-            );
-          }
-
-          const payload = await response.json();
-          const mapped: CalendarEvent[] = (payload.items || []).map(
-            (item: any) => ({
-              id: item.id,
-              title: item.summary || "Untitled event",
-              start: item.start?.dateTime || item.start?.date,
-              end: item.end?.dateTime || item.end?.date,
-            }),
-          );
-
-          setEvents(mapped);
-        } catch (err) {
-          const message =
-            err instanceof Error ? err.message : "Could not load events.";
-          setError(message);
-          console.error("Calendar load error:", err);
-        } finally {
-          setLoading(false);
-        }
-      };
-
       loadEvents();
-    }, []);
+    }, [loadEvents]);
 
     useImperativeHandle(ref, () => ({
       changeView: (view) => {
@@ -353,14 +402,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
                   <select
                     value={formRepeat}
                     onChange={(e) =>
-                      setFormRepeat(
-                        e.target.value as
-                          | "none"
-                          | "daily"
-                          | "weekly"
-                          | "monthly"
-                          | "yearly",
-                      )
+                      setFormRepeat(e.target.value as RepeatValue)
                     }
                     className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                   >
@@ -369,6 +411,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
                     <option value="yearly">Yearly</option>
+                    <option value="custom">Custom</option>
                   </select>
                 </div>
 
