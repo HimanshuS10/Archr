@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getGoogleAccessTokenForUser } from "@/lib/google-calendar-server";
 
+type RepeatOption = "none" | "daily" | "weekly" | "monthly" | "yearly";
+
 export async function GET(request: Request) {
   const supabase = await createClient();
   const {
@@ -78,6 +80,16 @@ export async function POST(request: Request) {
       start?: string;
       end?: string;
       description?: string;
+      timeZone?: string;
+      repeat?: RepeatOption;
+      repeatUntil?: string;
+      repeatCustom?: {
+        frequency: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+        interval?: number; // default 1
+        byDay?: string[]; // ["MO","WE","FR"]
+        byMonthDay?: number[]; // [10, 20]
+        count?: number; // optional alternative to UNTIL
+      };
     };
 
     if (!body.title || !body.start) {
@@ -85,6 +97,28 @@ export async function POST(request: Request) {
         { error: "Title and start are required." },
         { status: 400 },
       );
+    }
+
+    const eventTimeZone = body.timeZone || "UTC";
+
+    const freqMap = {
+      daily: "DAILY",
+      weekly: "WEEKLY",
+      monthly: "MONTHLY",
+      yearly: "YEARLY",
+    } as const;
+
+    let recurrence: string[] | undefined;
+
+    if (body.repeat && body.repeat !== "none") {
+      const freq = freqMap[body.repeat as Exclude<RepeatOption, "none">];
+      const until = body.repeatUntil
+        ? `;UNTIL=${new Date(body.repeatUntil + "T23:59:59Z")
+            .toISOString()
+            .replace(/[-:]/g, "")
+            .split(".")[0]}Z`
+        : "";
+      recurrence = [`RRULE:FREQ=${freq}${until}`];
     }
 
     const accessToken = await getGoogleAccessTokenForUser(supabase, user.id);
@@ -99,10 +133,15 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           summary: body.title,
           description: body.description || undefined,
-          start: { dateTime: new Date(body.start).toISOString() },
+          start: {
+            dateTime: new Date(body.start).toISOString(),
+            timeZone: eventTimeZone,
+          },
           end: {
             dateTime: new Date(body.end || body.start).toISOString(),
+            timeZone: eventTimeZone,
           },
+          ...(recurrence ? { recurrence } : {}),
         }),
       },
     );

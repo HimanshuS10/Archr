@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Raleway } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
+import Navbar from "../components/landing/navbar";
 
-const raleway = Raleway({
-  variable: "--font-raleway",
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
@@ -19,16 +20,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-      <html lang="en">
-        <body
-          className={`${raleway.className} ${raleway.variable} antialiased`}
-        >
-          {children}
-        </body>
-      </html>
+    <html lang="en">
+      <body className={`${inter.variable} ${inter.className} antialiased`}>
+        <Navbar />
+        {children}
+      </body>
+    </html>
   );
 }

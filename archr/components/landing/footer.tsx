@@ -1,22 +1,36 @@
-import Image from "next/image";
+import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Footer() {
   return (
-    <footer className="relative bg-[#060b1a] px-6 pb-10 text-white z-30">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-x-0 top-0 h-24 bg-linear-to-b from-[#060b1a] to-transparent" />
-      </div>
+    <footer className="w-full bg-[#fafafa] py-12 px-6 md:px-12 font-sans border-t border-gray-100">
+      <div className="max-w-6xl mx-auto">
 
-      <div className="relative mx-auto w-full max-w-6xl border-t border-white/10 pt-10">
-        <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
-          <div className="flex items-center gap-2 text-sm font-semibold text-white">
-            <Image src="/Logo.png" alt="Archr" width={40} height={40} />
-            <span className="text-2xl font-bold">Archr</span>
+        <div className="flex flex-col md:flex-row justify-between items-center gap-12 md:gap-8">
+
+          <div className="flex items-center w-full max-w-md">
+            <Image
+              src="/Logo.png"
+              alt="Archr Logo"
+              width={32}
+              height={32}
+            />
+            <a
+              href="#"
+              className="text-xl ml-2 font-semibold tracking-tight text-black"
+            >
+              Archr
+            </a>
           </div>
 
-          <p className="text-xs text-white/50">
-            © {new Date().getFullYear()} Archr. All rights reserved.
-          </p>
+          <div className="flex items-center">
+            <ul className="flex flex-row items-center gap-6">
+              <li><Link href="/" className="text-gray-600 hover:text-gray-900 text-sm">Home</Link></li>
+              <li><Link href="/pricing" className="text-gray-600 hover:text-gray-900 text-sm">Pricing</Link></li>
+              <li><Link href="/integrations" className="text-gray-600 hover:text-gray-900 text-sm">Integrations</Link></li>
+            </ul>
+          </div>
+          
         </div>
       </div>
     </footer>
