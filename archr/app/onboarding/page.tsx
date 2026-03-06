@@ -3,6 +3,7 @@
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 
 const QUESTIONS = [
   {
@@ -37,9 +38,9 @@ export default function OnboardingPage() {
   const [saveError, setSaveError] = useState("");
   const current = QUESTIONS[index];
   const value = answers[current.id] ?? "";
-  
+
   const setAnswer = (val: string) => {
-    setAnswers((prev) => ({...prev, [current.id]: val}));
+    setAnswers((prev) => ({ ...prev, [current.id]: val }));
   };
 
 
@@ -88,45 +89,58 @@ export default function OnboardingPage() {
     router.push("/onboarding/connect-calendar");
 
   };
-  
+
   return (
-    <main className="min-h-screen bg-[#05060f] text-white flex items-center justify-center px-6">
-      <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-[#0b0d16] p-8">
-        <p className="text-sm text-white/60">
-          Question {index + 1} of {QUESTIONS.length}
-        </p>
+    <main className="min-h-screen bg-white text-slate-900 flex items-center justify-center px-6">
+      <div className="relative w-full max-w-xl rounded-3xl bg-white p-8 overflow-hidden">
 
-        <h1 className="mt-3 text-2xl font-semibold">{current.label}</h1>
+        {/* Card content */}
+        <div className="relative w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
 
-        <textarea
-          value={value}
-          onChange={(e) => setAnswer(e.target.value)}
-          placeholder={current.placeholder}
-          className="mt-4 w-full min-h-28 rounded-xl border border-white/15 bg-white/5 p-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-        />
+          <div className="flex w-full justify-center">
+            <div className="inline-flex items-center gap-3 rounded-full px-4 py-2">
+              <Image src="/Logo.png" alt="Archr logo" width={35} height={35} />
+              <span className="text-lg -ml-2 font-semibold text-slate-900">Archr</span>
+            </div>
+          </div>
 
-        <div className="mt-6 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => setIndex((p) => Math.max(0, p - 1))}
-            disabled={index === 0}
-            className="rounded-full border border-white/15 px-4 py-2 text-sm disabled:opacity-40"
-          >
-            Back
-          </button>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Question {index + 1} of {QUESTIONS.length}
+          </p>
 
-          <button
-            type="button"
-            onClick={next}
-            disabled={!value.trim() || isSaving}
-            className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold disabled:opacity-50"
-          >
-            {index === QUESTIONS.length - 1 ? (isSaving ? "Saving..." : "Continue") : "Next"}
-          </button>
+          <h1 className="mt-3 text-2xl font-semibold text-slate-900">{current.label}</h1>
+
+          <textarea
+            value={value}
+            onChange={(e) => setAnswer(e.target.value)}
+            placeholder={current.placeholder}
+            className="mt-4 w-full min-h-28 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
+          />
+
+          <div className="mt-6 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setIndex((p) => Math.max(0, p - 1))}
+              disabled={index === 0}
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:cursor-pointer disabled:opacity-40"
+            >
+              Back
+            </button>
+
+            <button
+              type="button"
+              onClick={next}
+              disabled={!value.trim() || isSaving}
+              className="rounded-full bg-linear-to-b from-blue-500 via-blue-600 to-blue-700 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-400 hover:via-blue-500 hover:to-blue-600 hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {index === QUESTIONS.length - 1 ? (isSaving ? "Saving..." : "Continue") : "Next"}
+            </button>
+          </div>
+
+          {saveError ? (
+            <p className="mt-4 text-sm text-red-500">{saveError}</p>
+          ) : null}
         </div>
-        {saveError ? (
-          <p className="mt-4 text-sm text-red-400">{saveError}</p>
-        ) : null}
       </div>
     </main>
   );
