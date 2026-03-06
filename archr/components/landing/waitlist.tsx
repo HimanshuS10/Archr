@@ -41,7 +41,7 @@ export default function Waitlist() {
   };
 
   return (
-    <section className="w-full bg-white py-24 px-4 md:px-8 flex justify-center">
+    <section id="waitlist" className="w-full bg-white pb-15 px-4 md:px-8 flex justify-center">
       <div className="w-full max-w-lg bg-white rounded-[2rem] p-8 md:p-12 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex flex-col items-center">
 
         {/* Badge */}

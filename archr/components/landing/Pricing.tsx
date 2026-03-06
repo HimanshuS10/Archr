@@ -4,7 +4,7 @@ import { Package, Star, Zap, Check } from "lucide-react";
 
 export default function Pricing() {
   return (
-    <section className="w-full bg-white py-24 px-4 md:px-8 flex flex-col items-center">
+    <section id="pricing" className="w-full bg-white py-24 px-4 md:px-8 flex flex-col items-center">
       
       {/* HEADER SECTION */}
       <div className="w-fit px-4 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm mb-6">

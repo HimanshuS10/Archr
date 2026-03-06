@@ -2,25 +2,82 @@
 
 import { supabase } from "@/lib/supabase";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  Calendar01Icon,
+  Clock01Icon,
+  Add01Icon,
+  PencilEdit01Icon,
+  Delete01Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+} from "@hugeicons/core-free-icons";
 
 type EventsProp = {
   isExpanded: boolean;
 };
 
+type Recurrence = "none" | "daily" | "weekly" | "monthly" | "custom";
+type Priority = "low" | "medium" | "high";
+
 type GoogleEvent = {
-  id: string;
+  id: string;          // Google Calendar event ID
+  supabaseId?: string; // Supabase user_events row ID (if saved)
   title: string;
   start: string;
   end: string;
   description?: string;
+  recurrence?: Recurrence;
+  travelMins?: number;
+  isFixed?: boolean;
+  priority?: Priority;
+  customRecurrence?: string;
 };
 
-const DEFAULT_MAX_RESULTS = 20;
-const DEFAULT_WINDOW_DAYS = 30;
+const DEFAULT_MAX_RESULTS = 50;
+const DEFAULT_WINDOW_DAYS = 60;
 
 function toDatetimeLocal(value?: string) {
   if (!value) return "";
   return value.slice(0, 16);
+}
+
+function isSameDay(dateA: Date, dateB: Date) {
+  return (
+    dateA.getFullYear() === dateB.getFullYear() &&
+    dateA.getMonth() === dateB.getMonth() &&
+    dateA.getDate() === dateB.getDate()
+  );
+}
+
+function formatTime(iso: string) {
+  const d = new Date(iso);
+  // All-day events come as YYYY-MM-DD (no time)
+  if (iso.length === 10) return "All day";
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDuration(start: string, end: string) {
+  if (start.length === 10) return "All day";
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+function formatDateHeading(date: Date) {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  if (isSameDay(date, today)) return "Today";
+  if (isSameDay(date, tomorrow)) return "Tomorrow";
+  return date.toLocaleDateString([], {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 const Events = ({ isExpanded }: EventsProp) => {
@@ -30,20 +87,33 @@ const Events = ({ isExpanded }: EventsProp) => {
   const [error, setError] = useState<string | null>(null);
   const [needsConnect, setNeedsConnect] = useState(false);
 
+  // Selected date (default today)
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+
+  // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formTitle, setFormTitle] = useState("");
   const [formStart, setFormStart] = useState("");
   const [formEnd, setFormEnd] = useState("");
   const [formDescription, setFormDescription] = useState("");
+  // AI metadata fields
+  const [formRecurrence, setFormRecurrence] = useState<Recurrence>("none");
+  const [formCustomRecurrence, setFormCustomRecurrence] = useState("");
+  const [formTravelMins, setFormTravelMins] = useState("");
+  const [formIsFixed, setFormIsFixed] = useState(false);
+  const [formPriority, setFormPriority] = useState<Priority>("medium");
 
-  const sortedEvents = useMemo(
-    () =>
-      [...events].sort(
-        (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
-      ),
-    [events],
-  );
+  // Events filtered to selected date, sorted by start time
+  const dayEvents = useMemo(() => {
+    return [...events]
+      .filter((e) => isSameDay(new Date(e.start), selectedDate))
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  }, [events, selectedDate]);
 
   const handleConnect = useCallback(async () => {
     await supabase.auth.signInWithOAuth({
@@ -51,9 +121,7 @@ const Events = ({ isExpanded }: EventsProp) => {
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
         scopes: "https://www.googleapis.com/auth/calendar",
-        queryParams: {
-          access_type: "offline",
-        },
+        queryParams: { access_type: "offline" },
       },
     });
   }, []);
@@ -63,7 +131,28 @@ const Events = ({ isExpanded }: EventsProp) => {
     setFormStart("");
     setFormEnd("");
     setFormDescription("");
+    setFormRecurrence("none");
+    setFormCustomRecurrence("");
+    setFormTravelMins("");
+    setFormIsFixed(false);
+    setFormPriority("medium");
     setEditingId(null);
+  };
+
+  // Parse AI metadata stored in description JSON block
+  const parseMetaFromDescription = (raw: string) => {
+    const match = raw.match(/<!--archr:([\s\S]*?):archr-->/);
+    if (!match) return { userDesc: raw, meta: {} };
+    try {
+      return { userDesc: raw.replace(/\s*<!--archr:[\s\S]*?:archr-->/, "").trim(), meta: JSON.parse(match[1]) };
+    } catch {
+      return { userDesc: raw, meta: {} };
+    }
+  };
+
+  const buildDescription = (userDesc: string, meta: Record<string, unknown>) => {
+    const metaStr = JSON.stringify(meta);
+    return userDesc ? `${userDesc}\n<!--archr:${metaStr}:archr-->` : `<!--archr:${metaStr}:archr-->`;
   };
 
   const loadEvents = useCallback(async () => {
@@ -77,20 +166,16 @@ const Events = ({ isExpanded }: EventsProp) => {
       );
 
       if (!response.ok) {
-        if (response.status === 401) {
-          setNeedsConnect(true);
-        }
+        if (response.status === 401) setNeedsConnect(true);
         const payload = await response.json().catch(() => null);
-        throw new Error(
-          payload?.error ?? `Failed to fetch events (${response.status}).`,
-        );
+        throw new Error(payload?.error ?? `Failed to fetch events (${response.status}).`);
       }
 
       const payload = await response.json();
       const mapped: GoogleEvent[] = (payload.items || [])
-        .filter((item: { start?: { dateTime?: string; date?: string } }) => {
-          return !!(item.start?.dateTime || item.start?.date);
-        })
+        .filter((item: { start?: { dateTime?: string; date?: string } }) =>
+          !!(item.start?.dateTime || item.start?.date)
+        )
         .map(
           (item: {
             id: string;
@@ -102,21 +187,14 @@ const Events = ({ isExpanded }: EventsProp) => {
             id: item.id,
             title: item.summary || "Untitled event",
             start: item.start.dateTime || item.start.date || "",
-            end:
-              item.end?.dateTime ||
-              item.end?.date ||
-              item.start.dateTime ||
-              item.start.date ||
-              "",
+            end: item.end?.dateTime || item.end?.date || item.start.dateTime || item.start.date || "",
             description: item.description || "",
-          }),
+          })
         );
 
       setEvents(mapped);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Could not load events.";
-      setError(message);
+      setError(err instanceof Error ? err.message : "Could not load events.");
     } finally {
       setLoading(false);
     }
@@ -126,11 +204,20 @@ const Events = ({ isExpanded }: EventsProp) => {
     loadEvents();
   }, [loadEvents]);
 
+  const shiftDay = (delta: number) => {
+    setSelectedDate((prev) => {
+      const next = new Date(prev);
+      next.setDate(prev.getDate() + delta);
+      return next;
+    });
+  };
+
   const openCreate = () => {
-    const now = new Date();
-    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
-    setFormStart(now.toISOString().slice(0, 16));
-    setFormEnd(oneHourLater.toISOString().slice(0, 16));
+    const base = new Date(selectedDate);
+    base.setHours(new Date().getHours(), 0, 0, 0);
+    const end = new Date(base.getTime() + 60 * 60 * 1000);
+    setFormStart(base.toISOString().slice(0, 16));
+    setFormEnd(end.toISOString().slice(0, 16));
     setIsModalOpen(true);
   };
 
@@ -139,7 +226,13 @@ const Events = ({ isExpanded }: EventsProp) => {
     setFormTitle(event.title);
     setFormStart(toDatetimeLocal(event.start));
     setFormEnd(toDatetimeLocal(event.end));
-    setFormDescription(event.description ?? "");
+    const { userDesc, meta } = parseMetaFromDescription(event.description ?? "");
+    setFormDescription(userDesc);
+    setFormRecurrence((meta.recurrence as Recurrence) ?? "none");
+    setFormCustomRecurrence((meta.customRecurrence as string) ?? "");
+    setFormTravelMins(meta.travelMins != null ? String(meta.travelMins) : "");
+    setFormIsFixed((meta.isFixed as boolean) ?? false);
+    setFormPriority((meta.priority as Priority) ?? "medium");
     setIsModalOpen(true);
   };
 
@@ -150,59 +243,92 @@ const Events = ({ isExpanded }: EventsProp) => {
 
   const handleSave = async () => {
     if (!formTitle || !formStart) return;
-
     setSaving(true);
     setError(null);
 
     try {
-      const payload = {
+      const meta: Record<string, unknown> = {
+        recurrence: formRecurrence,
+        isFixed: formIsFixed,
+        priority: formPriority,
+      };
+      if (formRecurrence === "custom" && formCustomRecurrence.trim())
+        meta.customRecurrence = formCustomRecurrence.trim();
+      if (formTravelMins && Number(formTravelMins) > 0)
+        meta.travelMins = Number(formTravelMins);
+
+      const fullDescription = buildDescription(formDescription, meta);
+
+      const gcalPayload = {
         title: formTitle,
         start: formStart,
         end: formEnd || formStart,
-        description: formDescription || undefined,
+        description: fullDescription || undefined,
       };
 
-      const url = editingId
-        ? `/api/google/events/${editingId}`
-        : "/api/google/events";
-      const method = editingId ? "PATCH" : "POST";
+      const supabasePayload = {
+        google_event_id: editingId ?? null,
+        title: formTitle,
+        description: formDescription || null,
+        start: formStart,
+        end: formEnd || formStart,
+        recurrence: formRecurrence,
+        custom_recurrence: formRecurrence === "custom" ? formCustomRecurrence.trim() || null : null,
+        travel_mins: formTravelMins && Number(formTravelMins) > 0 ? Number(formTravelMins) : null,
+        is_fixed: formIsFixed,
+        priority: formPriority,
+      };
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      // Find existing supabase row id (if editing)
+      const editingEvent = editingId ? events.find((e) => e.id === editingId) : null;
+      const existingSupabaseId = editingEvent?.supabaseId;
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          setNeedsConnect(true);
-        }
-        const body = await response.json().catch(() => null);
-        throw new Error(body?.error ?? "Failed to save event.");
+      // Fire both APIs in parallel
+      const gcalUrl = editingId ? `/api/google/events/${editingId}` : "/api/google/events";
+      const gcalMethod = editingId ? "PATCH" : "POST";
+
+      const supabaseUrl = existingSupabaseId
+        ? `/api/user-events/${existingSupabaseId}`
+        : "/api/user-events";
+      const supabaseMethod = existingSupabaseId ? "PATCH" : "POST";
+
+      const [gcalRes, supabaseRes] = await Promise.all([
+        fetch(gcalUrl, {
+          method: gcalMethod,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(gcalPayload),
+        }),
+        fetch(supabaseUrl, {
+          method: supabaseMethod,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(supabasePayload),
+        }),
+      ]);
+
+      if (!gcalRes.ok) {
+        if (gcalRes.status === 401) setNeedsConnect(true);
+        const body = await gcalRes.json().catch(() => null);
+        throw new Error(body?.error ?? "Failed to save event to Google Calendar.");
       }
 
-      const saved = await response.json();
+      const saved = await gcalRes.json();
+      const supabaseRow = supabaseRes.ok ? await supabaseRes.json().catch(() => null) : null;
+
       const mapped: GoogleEvent = {
         id: saved.id,
+        supabaseId: supabaseRow?.id ?? existingSupabaseId,
         title: saved.summary || "Untitled event",
         start: saved.start?.dateTime || saved.start?.date,
         end: saved.end?.dateTime || saved.end?.date,
         description: saved.description || "",
       };
 
-      setEvents((prev) => {
-        if (editingId) {
-          return prev.map((item) => (item.id === editingId ? mapped : item));
-        }
-        return [mapped, ...prev];
-      });
-
+      setEvents((prev) =>
+        editingId ? prev.map((e) => (e.id === editingId ? mapped : e)) : [mapped, ...prev]
+      );
       closeModal();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to save event.";
-      setError(message);
+      setError(err instanceof Error ? err.message : "Failed to save event.");
     } finally {
       setSaving(false);
     }
@@ -210,203 +336,365 @@ const Events = ({ isExpanded }: EventsProp) => {
 
   const handleDelete = async (id: string) => {
     setError(null);
-
+    const eventToDelete = events.find((e) => e.id === id);
     try {
-      const response = await fetch(`/api/google/events/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          setNeedsConnect(true);
-        }
-        const body = await response.json().catch(() => null);
-        throw new Error(body?.error ?? "Failed to delete event.");
+      const calls: Promise<Response>[] = [
+        fetch(`/api/google/events/${id}`, { method: "DELETE" }),
+      ];
+      // Also delete from Supabase if we have a row ID
+      if (eventToDelete?.supabaseId) {
+        calls.push(fetch(`/api/user-events/${eventToDelete.supabaseId}`, { method: "DELETE" }));
       }
 
-      setEvents((prev) => prev.filter((event) => event.id !== id));
+      const [gcalRes] = await Promise.all(calls);
+
+      if (!gcalRes.ok) {
+        if (gcalRes.status === 401) setNeedsConnect(true);
+        const body = await gcalRes.json().catch(() => null);
+        throw new Error(body?.error ?? "Failed to delete event.");
+      }
+      setEvents((prev) => prev.filter((e) => e.id !== id));
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to delete event.";
-      setError(message);
+      setError(err instanceof Error ? err.message : "Failed to delete event.");
     }
   };
 
   return (
     <main
-      className="h-screen overflow-hidden px-8 pt-2 pb-3 transition-[margin] duration-300"
+      className="min-h-screen bg-white px-8 pt-6 pb-8 transition-[margin] duration-300"
       style={{ marginLeft: isExpanded ? 260 : 70 }}
     >
-      <div className="flex items-center justify-between gap-3">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-white">Events</h1>
-          <p className="text-sm text-white/60">
-            Showing next {DEFAULT_MAX_RESULTS} events in {DEFAULT_WINDOW_DAYS} days.
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900">Events</h1>
+          <p className="mt-0.5 text-sm text-slate-400">Your schedule, day by day.</p>
         </div>
 
         <button
           type="button"
           onClick={openCreate}
-          className="inline-flex items-center gap-2 rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-300 hover:via-blue-400 hover:to-blue-500"
+          className="inline-flex items-center gap-2 rounded-full bg-linear-to-b from-blue-500 via-blue-600 to-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-400 hover:via-blue-500 hover:to-blue-600 hover:cursor-pointer"
         >
-          <span className="text-base leading-none">+</span>
+          <HugeiconsIcon icon={Add01Icon} className="h-4 w-4" />
           New Event
         </button>
       </div>
 
-      <div className="mt-4 h-[calc(100vh-7rem)] overflow-auto rounded-2xl border border-white/10 bg-[#131314] p-4">
+      <div className="mt-6 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => shiftDay(-1)}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:cursor-pointer"
+        >
+          <HugeiconsIcon icon={ArrowLeft01Icon} className="h-4 w-4" />
+        </button>
+
+        <div className="flex items-center gap-2">
+          <HugeiconsIcon icon={Calendar01Icon} className="h-4 w-4 text-blue-500" />
+          <span className="text-base font-semibold text-slate-900">
+            {formatDateHeading(selectedDate)}
+          </span>
+          <span className="text-sm text-slate-400">
+            {selectedDate.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => shiftDay(1)}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:cursor-pointer"
+        >
+          <HugeiconsIcon icon={ArrowRight01Icon} className="h-4 w-4" />
+        </button>
+
+        {/* Jump to today */}
+        {!isSameDay(selectedDate, new Date()) && (
+          <button
+            type="button"
+            onClick={() => {
+              const t = new Date();
+              t.setHours(0, 0, 0, 0);
+              setSelectedDate(t);
+            }}
+            className="ml-1 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:cursor-pointer"
+          >
+            Today
+          </button>
+        )}
+      </div>
+
+      {/* ── Event list ── */}
+      <div className="mt-4">
         {loading ? (
-          <div className="flex h-full items-center justify-center text-sm text-white/60">
+          <div className="flex h-48 items-center justify-center text-sm text-slate-400">
             Loading events...
           </div>
         ) : needsConnect ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <p className="max-w-md text-sm text-white/70">
-              Connect your Google Calendar to load and manage your events. If
-              this is your first time after the token migration, one reconnect
-              may be required.
+          <div className="flex h-64 flex-col items-center justify-center gap-4 text-center">
+            <p className="max-w-sm text-sm text-slate-500">
+              Connect your Google Calendar to view and manage your events.
             </p>
             <button
               type="button"
               onClick={handleConnect}
-              className="rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-300 hover:via-blue-400 hover:to-blue-500"
+              className="rounded-full bg-linear-to-b from-blue-500 via-blue-600 to-blue-700 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-400 hover:via-blue-500 hover:to-blue-600"
             >
               Connect Google Calendar
             </button>
           </div>
         ) : (
           <>
-            {error ? (
-              <div className="mb-3 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            {error && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">
                 {error}
               </div>
-            ) : null}
+            )}
 
-            {sortedEvents.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-sm text-white/50">
-                No upcoming events found.
+            {dayEvents.length === 0 ? (
+              <div className="flex h-48 flex-col items-center justify-center gap-2 text-center">
+                <HugeiconsIcon icon={Calendar01Icon} className="h-8 w-8 text-slate-200" />
+                <p className="text-sm text-slate-400">No events for this day.</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {sortedEvents.map((event) => (
-                  <div
+              <ul className="divide-y divide-slate-100">
+                {dayEvents.map((event) => (
+                  <li
                     key={event.id}
-                    className="rounded-xl border border-white/10 bg-white/3 p-4"
+                    className="group flex items-start gap-4 py-3.5"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="truncate text-sm font-semibold text-white">
-                          {event.title}
-                        </h3>
-                        <p className="mt-1 text-xs text-white/60">
-                          {new Date(event.start).toLocaleString()} -{" "}
-                          {new Date(event.end).toLocaleString()}
-                        </p>
-                        {event.description ? (
-                          <p className="mt-2 line-clamp-2 text-xs text-white/65">
-                            {event.description}
-                          </p>
-                        ) : null}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(event)}
-                          className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/80 transition hover:bg-white/10"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(event.id)}
-                          className="rounded-full border border-red-400/30 px-3 py-1 text-xs text-red-300 transition hover:bg-red-500/10"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                    {/* Time column */}
+                    <div className="w-16 shrink-0 text-right">
+                      <span className="text-xs font-medium text-slate-400">
+                        {formatTime(event.start)}
+                      </span>
                     </div>
-                  </div>
+
+                    {/* Blue accent line */}
+                    <div className="mt-1 w-0.5 self-stretch rounded-full bg-blue-200 shrink-0" />
+
+                    {/* Content */}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-slate-900 truncate">{event.title}</p>
+                      <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-400">
+                        <HugeiconsIcon icon={Clock01Icon} className="h-3 w-3 shrink-0" />
+                        <span>{formatDuration(event.start, event.end)}</span>
+                      </div>
+                      {event.description ? (
+                        <p className="mt-1 line-clamp-1 text-xs text-slate-400">
+                          {event.description}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    {/* Actions — shown on row hover */}
+                    <div className="flex shrink-0 items-center gap-1 opacity-0 transition group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(event)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 hover:cursor-pointer"
+                        aria-label="Edit"
+                      >
+                        <HugeiconsIcon icon={PencilEdit01Icon} className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(event.id)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-500 hover:cursor-pointer"
+                        aria-label="Delete"
+                      >
+                        <HugeiconsIcon icon={Delete01Icon} className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </>
         )}
       </div>
 
+      {/* ── Modal ── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0b0d16] p-6 text-white">
-            <h2 className="text-lg font-semibold">
-              {editingId ? "Edit Event" : "Add New Event"}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-semibold text-slate-900">
+              {editingId ? "Edit Event" : "New Event"}
             </h2>
+            <p className="mt-0.5 text-xs text-slate-400">Extra details help the AI schedule smarter.</p>
 
             <div className="mt-4 grid gap-3">
-              <div className="grid gap-1">
-                <label className="text-xs uppercase tracking-[0.25em] text-white/50">
-                  Event name
-                </label>
+
+              {/* Title */}
+              <div className="grid gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Event name</label>
                 <input
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
                   placeholder="Team standup"
-                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm placeholder:text-white/35 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
 
-              <div className="grid gap-1">
-                <label className="text-xs uppercase tracking-[0.25em] text-white/50">
-                  Start
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formStart}
-                  onChange={(e) => setFormStart(e.target.value)}
-                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                />
+              {/* Start / End row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Start</label>
+                  <input
+                    type="datetime-local"
+                    value={formStart}
+                    onChange={(e) => setFormStart(e.target.value)}
+                    className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">End</label>
+                  <input
+                    type="datetime-local"
+                    value={formEnd}
+                    onChange={(e) => setFormEnd(e.target.value)}
+                    className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
               </div>
 
-              <div className="grid gap-1">
-                <label className="text-xs uppercase tracking-[0.25em] text-white/50">
-                  End
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formEnd}
-                  onChange={(e) => setFormEnd(e.target.value)}
-                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                />
-              </div>
-
-              <div className="grid gap-1">
-                <label className="text-xs uppercase tracking-[0.25em] text-white/50">
-                  Description (optional)
+              {/* Description */}
+              <div className="grid gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Description <span className="normal-case tracking-normal text-slate-400 font-normal">(optional)</span>
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
                   placeholder="Add details..."
-                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm placeholder:text-white/35 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
                 />
               </div>
+
+              {/* Divider */}
+              <div className="flex items-center gap-3 pt-1">
+                <span className="h-px flex-1 bg-slate-100" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">AI Context</span>
+                <span className="h-px flex-1 bg-slate-100" />
+              </div>
+
+              {/* Recurrence */}
+              <div className="grid gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Repeats</label>
+                <div className="flex flex-wrap gap-2">
+                  {(["none", "daily", "weekly", "monthly", "custom"] as Recurrence[]).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setFormRecurrence(r)}
+                      className={`rounded-full border px-3.5 py-1.5 text-xs font-medium capitalize transition hover:cursor-pointer ${formRecurrence === r
+                        ? "border-blue-500 bg-blue-50 text-blue-600"
+                        : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                        }`}
+                    >
+                      {r === "none" ? "One-time" : r}
+                    </button>
+                  ))}
+                </div>
+                {formRecurrence === "custom" && (
+                  <input
+                    value={formCustomRecurrence}
+                    onChange={(e) => setFormCustomRecurrence(e.target.value)}
+                    placeholder="e.g. Every other Tuesday, first Monday of month..."
+                    className="mt-1.5 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                )}
+              </div>
+
+              {/* Travel time + Fixed event row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Travel / commute
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      max="300"
+                      value={formTravelMins}
+                      onChange={(e) => setFormTravelMins(e.target.value)}
+                      placeholder="0"
+                      className="w-full rounded-full border border-slate-200 bg-white px-4 py-2.5 pr-14 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400">min</span>
+                  </div>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Priority</label>
+                  <div className="flex gap-2">
+                    {(["low", "medium", "high"] as Priority[]).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setFormPriority(p)}
+                        className={`flex-1 rounded-full border px-2 py-1.5 text-xs font-medium capitalize transition hover:cursor-pointer ${formPriority === p
+                          ? p === "high"
+                            ? "border-red-400 bg-red-50 text-red-600"
+                            : p === "medium"
+                              ? "border-amber-400 bg-amber-50 text-amber-600"
+                              : "border-emerald-400 bg-emerald-50 text-emerald-600"
+                          : "border-slate-200 bg-white text-slate-400 hover:bg-slate-50"
+                          }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Fixed event toggle */}
+              <button
+                type="button"
+                onClick={() => setFormIsFixed((v) => !v)}
+                className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition hover:cursor-pointer ${formIsFixed
+                  ? "border-blue-200 bg-blue-50"
+                  : "border-slate-200 bg-white hover:bg-slate-50"
+                  }`}
+              >
+                {/* Toggle pill */}
+                <span
+                  className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${formIsFixed ? "bg-blue-500" : "bg-slate-200"
+                    }`}
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${formIsFixed ? "translate-x-[18px]" : "translate-x-[3px]"
+                      }`}
+                  />
+                </span>
+                <span className="text-sm">
+                  <span className={`font-medium ${formIsFixed ? "text-blue-700" : "text-slate-700"}`}>
+                    Fixed event
+                  </span>
+                  <span className="ml-1.5 text-xs text-slate-400">
+                    {formIsFixed ? "Cannot be moved by the AI" : "AI can reschedule if needed"}
+                  </span>
+                </span>
+              </button>
+
             </div>
 
             <div className="mt-5 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={closeModal}
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:cursor-pointer"
               >
                 Cancel
               </button>
-
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={!formTitle.trim() || !formStart || saving}
-                className="rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-300 hover:via-blue-400 hover:to-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-full bg-linear-to-b from-blue-500 via-blue-600 to-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-400 hover:via-blue-500 hover:to-blue-600 disabled:cursor-not-allowed disabled:opacity-60 hover:cursor-pointer"
               >
                 {saving ? "Saving..." : editingId ? "Save changes" : "Add event"}
               </button>

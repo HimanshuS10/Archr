@@ -16,7 +16,7 @@ export default function Navbar() {
             height={32}
           />
           <a
-            href="#"
+            href="/"
             className="text-xl font-semibold tracking-tight text-black"
           >
             Archr
