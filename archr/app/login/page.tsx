@@ -44,159 +44,114 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-[#f5f5f5]">
-      {/* Left panel — decorative */}
-      <div className="relative hidden w-[55%] overflow-hidden lg:flex lg:flex-col lg:items-center lg:justify-center">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(59,130,246,0.08),transparent_60%)]" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(99,102,241,0.06),transparent_50%)]" />
+    <div className="max-h-screen w-full bg-white text-slate-900 flex items-center justify-center overflow-hidden">
+      <div className="grid h-full w-full max-w-6xl grid-cols-1 gap-6 px-6 py-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-stretch">
+        <div className="relative flex h-full flex-col items-center justify-center rounded-3xl border border-slate-100 bg-slate-50 p-8 overflow-hidden text-center max-[992px]:hidden">
+          {/* Background layers */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_120%,rgba(59,130,246,0.15),transparent_55%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.15),transparent_55%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(148,163,184,0.1)_1px,transparent_1px)] bg-size-[18px_18px]" />
 
-        <div className="relative z-10 flex flex-col items-center gap-8 px-12 text-center">
-          <a href="/" className="inline-flex items-center gap-3">
-            <Image src="/Logo.png" alt="Archr" width={48} height={48} />
-            <span className="text-3xl font-semibold tracking-tight text-black">
-              Archr
-            </span>
-          </a>
-
-          <h1 className="max-w-md text-4xl leading-tight font-semibold tracking-tight text-black">
-            Pick up right
-            <br />
-            <span className="text-blue-600">where you left off.</span>
-          </h1>
-
-          <p className="max-w-sm text-base leading-relaxed text-black/55">
-            Your AI-powered schedule is waiting. Sign in to keep your
-            productivity on track.
-          </p>
-
-          {/* Activity card */}
-          <div className="mt-4 w-full max-w-xs rounded-2xl border border-black/5 bg-white p-5 shadow-[0_12px_40px_rgba(0,0,0,0.06)]">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-medium text-black/40">
-                This week
-              </span>
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
-                +12% focus time
-              </span>
+          {/* Foreground content */}
+          <div className="relative flex flex-col items-center justify-center gap-4">
+            {/* Logo */}
+            <div className="inline-flex items-center gap-3 rounded-full px-4 py-2">
+              <Image src="/Logo.png" alt="Archr logo" width={55} height={55} />
+              <span className="text-2xl font-semibold text-slate-900">Archr</span>
             </div>
-            <div className="flex items-end gap-1.5">
-              {[40, 65, 50, 80, 72, 90, 60].map((h, i) => (
-                <div
-                  key={i}
-                  className="flex-1 rounded-t-md bg-blue-100 transition"
-                  style={{ height: `${h}px` }}
-                >
-                  {i === 5 && (
-                    <div
-                      className="rounded-t-md bg-blue-500"
-                      style={{ height: `${h}px` }}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-            <div className="mt-2 flex justify-between text-[10px] text-black/30">
-              {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-                <span key={i} className="flex-1 text-center">
-                  {d}
-                </span>
-              ))}
-            </div>
+
+            {/* Welcome text */}
+            <h1 className="mt-4 text-2xl font-bold text-slate-900 sm:text-3xl">
+              Welcome back!
+            </h1>
+            <p className="mt-2 max-w-xs text-sm text-slate-600 sm:text-base">
+              Pick up right where you left off. Your AI-powered schedule is
+              waiting for you.
+            </p>
           </div>
         </div>
-      </div>
 
-      {/* Right panel — login form */}
-      <div className="flex w-full items-center justify-center px-6 py-12 lg:w-[45%]">
-        <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="mb-8 flex items-center gap-2 lg:hidden">
-            <Image src="/Logo.png" alt="Archr" width={32} height={32} />
-            <span className="text-xl font-semibold text-black">Archr</span>
-          </div>
+        <div className="flex h-full items-center justify-center text-slate-900">
+          <div className="h-full w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-xl lg:max-w-none">
+            <h2 className="text-2xl font-semibold text-slate-900">Log In</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Sign in to your account to continue.
+            </p>
 
-          <h2 className="text-3xl font-semibold tracking-tight text-black">
-            Welcome back
-          </h2>
-          <p className="mt-2 text-sm text-black/50">
-            Log in to your account to continue.
-          </p>
-
-          {/* Google */}
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            className="mt-8 flex w-full cursor-pointer items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-3.5 text-sm font-medium text-black/80 shadow-sm transition hover:border-black/20 hover:shadow-md"
-          >
-            <Image src="/Google.png" alt="Google" width={18} height={18} />
-            Continue with Google
-          </button>
-
-          {/* Divider */}
-          <div className="my-6 flex items-center gap-4">
-            <span className="h-px flex-1 bg-black/10" />
-            <span className="text-xs text-black/35">or continue with email</span>
-            <span className="h-px flex-1 bg-black/10" />
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-black/50">
-                Email
-              </label>
-              <input
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-black placeholder:text-black/30 shadow-sm transition focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                required
-              />
+            <div className="mt-6 grid gap-2">
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                className="flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900 hover:cursor-pointer shadow-sm"
+              >
+                <Image
+                  src="/Google.png"
+                  alt="Google logo"
+                  width={18}
+                  height={18}
+                />
+                Continue with Google
+              </button>
             </div>
 
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <label className="text-xs font-medium text-black/50">
-                  Password
+            <div className="my-6 flex items-center gap-3 text-xs text-slate-400">
+              <span className="h-px flex-1 bg-slate-200" /> or{" "}
+              <span className="h-px flex-1 bg-slate-200" />
+            </div>
+
+            <form onSubmit={handleLogin} className="grid gap-4">
+              <div className="grid gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Email
                 </label>
-                <a
-                  href="#"
-                  className="text-xs text-blue-600 transition hover:text-blue-700"
-                >
-                  Forgot password?
-                </a>
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  required
+                />
               </div>
-              <input
-                type="password"
-                placeholder="Your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-black placeholder:text-black/30 shadow-sm transition focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                required
-              />
-            </div>
+              <div className="grid gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Password
+                  </label>
+                  <a
+                    href="#"
+                    className="text-xs text-blue-600 transition hover:text-blue-500"
+                  >
+                    Forgot password?
+                  </a>
+                </div>
+                <input
+                  type="password"
+                  placeholder="Your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  required
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={`w-full cursor-pointer rounded-xl bg-black px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-black/85 ${
-                isLoading ? "cursor-not-allowed opacity-60" : ""
-              }`}
-            >
-              {isLoading ? "Signing in…" : "Log in"}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className={`mt-2 rounded-full bg-linear-to-b from-blue-500 via-blue-600 to-blue-700 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-400 hover:via-blue-500 hover:to-blue-600 hover:cursor-pointer ${isLoading ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
+              >
+                {isLoading ? "Signing in..." : "Log in"}
+              </button>
+            </form>
 
-          <p className="mt-6 text-center text-sm text-black/40">
-            Don&apos;t have an account?{" "}
-            <a
-              className="font-medium text-blue-600 transition hover:text-blue-700"
-              href="/signup"
-            >
-              Sign up
-            </a>
-          </p>
+            <p className="mt-6 text-center text-xs text-slate-500">
+              Don&apos;t have an account?{" "}
+              <a className="font-semibold text-blue-600 hover:text-blue-500" href="/signup">
+                Sign up
+              </a>
+            </p>
+          </div>
         </div>
       </div>
     </div>
