@@ -9,8 +9,6 @@ import Tasks from "@/components/dashboard/Tasks";
 
 const Home = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const [hoverOpen, setHoverOpen] = useState(false);
-  const isExpanded = !collapsed || hoverOpen;
   const [activeTab, setActiveTab] = useState<"Home" | "Events" | "Tasks">("Home");
 
   useEffect(() => {
@@ -24,19 +22,17 @@ const Home = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-white text-slate-900">
       <Sidebar
-        collapsed={!isExpanded}
+        collapsed={collapsed}
         onToggle={() => setCollapsed((prev) => !prev)}
-        onHoverOpen={() => setHoverOpen(true)}
-        onHoverClose={() => setHoverOpen(false)}
         activeTab={activeTab}
         onTabChange={setActiveTab}
       />
 
-      {activeTab === "Home" && <Dashboard isExpanded={isExpanded} />}
-      {activeTab === "Events" && <Events isExpanded={isExpanded} />}
-      {activeTab === "Tasks" && <Tasks isExpanded={isExpanded} />}
+      {activeTab === "Home" && <Dashboard isExpanded={!collapsed} />}
+      {activeTab === "Events" && <Events isExpanded={!collapsed} />}
+      {activeTab === "Tasks" && <Tasks isExpanded={!collapsed} />}
 
     </div>
   );

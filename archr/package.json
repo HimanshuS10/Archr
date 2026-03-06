@@ -15,6 +15,7 @@
     "@fullcalendar/interaction": "^6.1.20",
     "@fullcalendar/react": "^6.1.20",
     "@fullcalendar/timegrid": "^6.1.20",
+    "@google/generative-ai": "^0.24.1",
     "@hugeicons/core-free-icons": "^3.1.1",
     "@hugeicons/react": "^1.1.5",
     "@supabase/ssr": "^0.8.0",
