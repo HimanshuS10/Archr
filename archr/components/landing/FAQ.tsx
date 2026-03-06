@@ -5,34 +5,28 @@ import { Plus, Minus } from "lucide-react";
 
 const faqs = [
   {
-    question: "How does this platform help our team manage financial data better?",
-    answer: "Our platform centralizes all your financial data into a single, easy-to-use dashboard. It automates categorization, provides real-time reporting, and gives you actionable insights to make informed business decisions."
+    question: "How does Archr automatically plan my tasks?",
+    answer: "Archr acts as an AI-powered productivity layer over your calendar. You simply input your tasks, estimates, and deadlines, and Archr intelligently slots them around your existing meetings and deep-work preferences."
   },
   {
-    question: "Can we connect our existing banks and financial tools easily?",
-    answer: "Yes! We support integrations with over 10,000 global financial institutions. You can securely connect your bank accounts, credit cards, and accounting software in just a few clicks."
+    question: "What happens if a meeting goes long or my schedule changes?",
+    answer: "That's exactly where Archr shines. If a meeting is added, delayed, or a deadline shifts, Archr dynamically rebalances your schedule on the fly. It automatically recalculates and shifts your remaining tasks so you never have to manually reorganize your calendar."
   },
   {
-    question: "Is our company's financial data secure and properly protected here?",
-    answer: "Security is our top priority. We use bank-level 256-bit encryption and strictly adhere to industry standards like SOC 2 to ensure your data is always safe and private."
-  },
-  {
-    question: "Does the platform support multiple team members with different access levels?",
-    answer: "Absolutely. You can invite your entire team and assign custom roles and permissions. This ensures everyone has the access they need while keeping sensitive information restricted."
+    question: "Do I have to stop using my current calendar?",
+    answer: "Not at all. Archr is designed to sync seamlessly with your existing calendar providers. It reads your current events to find the best times for your tasks, ensuring you always know what to focus on next without abandoning the tools you already use."
   }
 ];
 
-export default function faq() {
-  // 1. Tell TypeScript this can be a number OR null
+export default function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
-  // 2. Simplify this to just expect a number
   const toggleFaq = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
   };
 
   return (
-    <section className="w-full bg-white pb-20 px-4 md:px-8">
+    <section id="faq" className="w-full bg-white pb-20 px-4 md:px-8">
       <div className="max-w-3xl mx-auto flex flex-col items-center">
         
         {/* Header Section */}
