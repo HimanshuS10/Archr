@@ -1,6 +1,6 @@
 "use client";
 
-import { Package, Star, Zap, Check } from "lucide-react";
+import { Package, Star, Zap, Check, X } from "lucide-react";
 
 export default function Pricing() {
   return (
@@ -25,7 +25,7 @@ export default function Pricing() {
             <div className="bg-gray-100 p-2 rounded-full shrink-0">
               <Package size={20} className="text-gray-800" />
             </div>
-            <h3 className="text-2xl font-medium tracking-tight">Starter</h3>
+            <h3 className="text-2xl font-medium tracking-tight">Free</h3>
           </div>
           
           <div className="mb-4">
@@ -43,11 +43,17 @@ export default function Pricing() {
           <hr className="border-gray-100 mb-8" />
           
           <ul className="space-y-4 text-sm text-gray-600 flex-1">
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> 1 connected account</li>
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Real-time dashboard access</li>
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Basic reporting</li>
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Email support</li>
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Up to 2 team members</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Up to 10 tasks / week</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Basic auto-scheduling</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Manual drag & drop</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Weekly plan view</li>
+          </ul>
+          <hr className="border-gray-300 my-8" />
+          <ul className="space-y-4 text-sm text-gray-600 flex-1">
+            <li className="flex items-center gap-3"><X size={18} className="text-gray-400" /> Up to 10 tasks / week</li>
+            <li className="flex items-center gap-3"><X size={18} className="text-gray-400" /> Basic auto-scheduling</li>
+            <li className="flex items-center gap-3"><X size={18} className="text-gray-400" /> Manual drag & drop</li>
+            <li className="flex items-center gap-3"><X size={18} className="text-gray-400" /> Weekly plan view</li>
           </ul>
         </div>
 
@@ -65,7 +71,7 @@ export default function Pricing() {
             </div>
             
             <div className="mb-4">
-              <span className="text-5xl font-medium tracking-tight">$25</span>
+              <span className="text-5xl font-medium tracking-tight">$15</span>
               <span className="text-gray-500 font-medium ml-2">/ mo</span>
             </div>
             <p className="text-gray-500 text-sm mb-8 h-10">
@@ -79,11 +85,14 @@ export default function Pricing() {
             <hr className="border-gray-100 mb-8" />
             
             <ul className="space-y-4 text-sm text-gray-600 flex-1">
-              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Up to 5 connected accounts</li>
-              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Advanced analytics</li>
-              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Automated reports</li>
-              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Priority email support</li>
-              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Up to 10 team members</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Unlimited tasks & projects</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Energy-aware scheduling</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Dynamic rescheduling</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> AI task breakdown</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Priority conflict engine</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Buffer & transition logic</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Unlimited habits</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Weekly productivity analytics</li>
             </ul>
           </div>
         </div>
@@ -98,7 +107,7 @@ export default function Pricing() {
           </div>
           
           <div className="mb-4">
-            <span className="text-5xl font-medium tracking-tight">$75</span>
+            <span className="text-5xl font-medium tracking-tight">$35</span>
             <span className="text-gray-500 font-medium ml-2">/ mo</span>
           </div>
           <p className="text-gray-500 text-sm mb-8 h-10">
