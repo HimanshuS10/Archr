@@ -17,6 +17,8 @@ import {
   ArrowUp01Icon,
   SparklesIcon,
   Loading03Icon,
+  CalendarAdd01Icon,
+  Cancel01Icon,
 } from "@hugeicons/core-free-icons";
 
 type TasksProp = { isExpanded: boolean };
@@ -77,7 +79,11 @@ export default function Tasks({ isExpanded }: TasksProp) {
 
   // subtasks keyed by task id
   const [subtasksMap, setSubtasksMap] = useState<Record<string, Subtask[]>>({});
-  const [generatingId, setGeneratingId] = useState<string | null>(null); // which task is generating
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+
+  // schedule-to-calendar prompt
+  const [schedulePromptTaskId, setSchedulePromptTaskId] = useState<string | null>(null);
+  const [schedulingToCalendar, setSchedulingToCalendar] = useState(false);
 
   // ── Form state ──────────────────────────────────────────────
   const [title, setTitle] = useState("");
@@ -283,10 +289,64 @@ export default function Tasks({ isExpanded }: TasksProp) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to generate subtasks.");
       setSubtasksMap((prev) => ({ ...prev, [task.id]: json.subtasks as Subtask[] }));
+      setSchedulePromptTaskId(task.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not generate subtasks.");
     } finally {
       setGeneratingId(null);
+    }
+  };
+
+  // ── Schedule subtasks as Google Calendar events ─────────────
+  const scheduleSubtasksToCalendar = async (taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    const subs = subtasksMap[taskId];
+    if (!task || !subs?.length) return;
+
+    setSchedulingToCalendar(true);
+    setError("");
+
+    try {
+      const now = new Date();
+      const deadlineDate = task.deadline ? new Date(task.deadline) : new Date(now.getTime() + 7 * 86400000);
+      const availableMs = Math.max(deadlineDate.getTime() - now.getTime(), 3600000);
+      const totalEstimatedMs = subs.reduce((sum, s) => sum + (s.estimated_minutes ?? 30) * 60000, 0);
+
+      // Distribute subtasks evenly across available time, leaving buffer
+      const usableMs = Math.min(availableMs * 0.85, availableMs - 3600000);
+      const gapMs = subs.length > 1
+        ? Math.max((usableMs - totalEstimatedMs) / (subs.length - 1), 1800000)
+        : 0;
+
+      let cursor = new Date(now.getTime() + 3600000); // start 1 hour from now
+
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+      for (const sub of subs) {
+        const durationMs = (sub.estimated_minutes ?? 30) * 60000;
+        const start = new Date(cursor);
+        const end = new Date(start.getTime() + durationMs);
+
+        await fetch("/api/google/events", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: `${sub.title}`,
+            description: `Subtask for: ${task.title}`,
+            start: start.toISOString(),
+            end: end.toISOString(),
+            timeZone: tz,
+          }),
+        });
+
+        cursor = new Date(end.getTime() + gapMs);
+      }
+
+      setSchedulePromptTaskId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to schedule events.");
+    } finally {
+      setSchedulingToCalendar(false);
     }
   };
 
@@ -343,6 +403,7 @@ export default function Tasks({ isExpanded }: TasksProp) {
           <div className="flex h-48 flex-col items-center justify-center gap-2 text-center">
             <HugeiconsIcon icon={TaskDaily02Icon} className="h-8 w-8 text-slate-200" />
             <p className="text-sm text-slate-400">No tasks yet. Click <span className="font-medium text-slate-600">New Task</span> to add one.</p>
+            <p className="text-lg text-slate-400">PLS CHECK THE PLAN ON THE IPAD</p>
           </div>
         ) : (
           <ul className="divide-y divide-slate-100">
@@ -485,6 +546,86 @@ export default function Tasks({ isExpanded }: TasksProp) {
           </ul>
         )}
       </div>
+
+      {/* ── Schedule-to-Calendar Prompt ── */}
+      {schedulePromptTaskId && (() => {
+        const promptTask = tasks.find((t) => t.id === schedulePromptTaskId);
+        const promptSubs = subtasksMap[schedulePromptTaskId] ?? [];
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100">
+                  <HugeiconsIcon icon={CalendarAdd01Icon} className="h-5 w-5 text-violet-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">Schedule to Calendar?</h3>
+                  <p className="text-xs text-slate-400">Add these subtasks as Google Calendar events</p>
+                </div>
+              </div>
+
+              {promptTask && (
+                <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Task</p>
+                  <p className="mt-0.5 text-sm font-medium text-slate-800">{promptTask.title}</p>
+                  {promptTask.deadline && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      Deadline: {new Date(promptTask.deadline).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-3 space-y-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {promptSubs.length} subtask{promptSubs.length !== 1 ? "s" : ""} to schedule
+                </p>
+                <ul className="max-h-48 space-y-1 overflow-y-auto">
+                  {promptSubs.map((sub, i) => (
+                    <li key={sub.id} className="flex items-center gap-2 rounded-lg bg-white border border-slate-100 px-3 py-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-600">
+                        {i + 1}
+                      </span>
+                      <span className="flex-1 text-sm text-slate-700">{sub.title}</span>
+                      {sub.estimated_minutes && (
+                        <span className="text-xs text-slate-400">{sub.estimated_minutes}m</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <p className="mt-3 text-xs text-slate-400">
+                Events will be spaced out between now and the deadline.
+              </p>
+
+              <div className="mt-4 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSchedulePromptTaskId(null)}
+                  disabled={schedulingToCalendar}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:cursor-pointer disabled:opacity-60"
+                >
+                  <HugeiconsIcon icon={Cancel01Icon} className="h-3.5 w-3.5" />
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scheduleSubtasksToCalendar(schedulePromptTaskId)}
+                  disabled={schedulingToCalendar}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-linear-to-b from-violet-500 via-violet-600 to-violet-700 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 ring-1 ring-inset ring-white/20 transition hover:from-violet-400 hover:via-violet-500 hover:to-violet-600 hover:cursor-pointer disabled:opacity-60"
+                >
+                  <HugeiconsIcon
+                    icon={schedulingToCalendar ? Loading03Icon : CalendarAdd01Icon}
+                    className={`h-4 w-4 ${schedulingToCalendar ? "animate-spin" : ""}`}
+                  />
+                  {schedulingToCalendar ? "Scheduling..." : "Add to Calendar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Modal ── */}
       {isModalOpen && (

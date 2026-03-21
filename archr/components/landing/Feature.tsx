@@ -1,52 +1,29 @@
 import React from "react";
+import AutoScheduleFeature from "./animation/AutoScheduleFeature";
+import UnifiedTaskAnimation from "./animation/UnifiedTaskAnimation";
+import TaskBreakdownAnimation from "./animation/TaskBreakdownAnimation";
+import ConflictResolution from "./animation/Conflictresolution";
 
 const CalendarGraphic = () => (
-  <div className="w-full max-w-[220px] rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-    <div className="mb-3 flex items-center justify-between">
-      <span className="text-xs font-medium text-gray-500">This week</span>
-      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600">
-        Auto
-      </span>
-    </div>
-    <div className="space-y-2">
-      <div className="h-2 w-full rounded-full bg-gray-100">
-        <div className="h-2 w-2/3 rounded-full bg-blue-500" />
-      </div>
-      <div className="h-2 w-full rounded-full bg-gray-100">
-        <div className="h-2 w-1/2 rounded-full bg-indigo-400" />
-      </div>
-      <div className="h-2 w-full rounded-full bg-gray-100">
-        <div className="h-2 w-4/5 rounded-full bg-sky-400" />
-      </div>
-    </div>
+  <div className="">
+    <AutoScheduleFeature />
   </div>
 );
 
 const ChecklistFlowGraphic = () => (
-  <div className="w-full max-w-[220px] rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-    <div className="space-y-2">
-      {["Lecture notes", "Practice set", "Review session"].map((task, i) => (
-        <div key={task} className="flex items-center gap-2 rounded-lg bg-gray-50 px-2 py-1.5">
-          <span
-            className={`h-4 w-4 rounded border text-[10px] leading-4 text-center ${
-              i < 2
-                ? "border-green-300 bg-green-100 text-green-700"
-                : "border-blue-300 bg-blue-100 text-blue-700"
-            }`}
-          >
-            {i < 2 ? "✓" : "·"}
-          </span>
-          <span className="text-xs text-gray-700">{task}</span>
-        </div>
-      ))}
-    </div>
+  <div className="">
+    <UnifiedTaskAnimation />
   </div>
 );
 
 const AnalyticsGraphic = () => (
   <div className="flex h-36 w-full max-w-[220px] items-end gap-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-    {[30, 55, 42, 75, 60, 90].map((h, idx) => (
-      <div key={idx} className="flex-1 rounded-t-md bg-blue-500/80" style={{ height: `${h}%` }} />
+    {[90, 75, 52, 45, 20, 10].map((h, idx) => (
+      <div
+        key={idx}
+        className="flex-1 rounded-t-md bg-blue-500/80"
+        style={{ height: `${h}%` }}
+      />
     ))}
   </div>
 );
@@ -67,27 +44,6 @@ const TimeBlockGraphic = () => (
   </div>
 );
 
-const TaskSplitGraphic = () => (
-  <div className="w-full max-w-[220px] rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-    <div className="space-y-2">
-      <div className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-700">
-        Build final presentation
-      </div>
-      <div className="ml-3 border-l-2 border-dashed border-blue-300 pl-3">
-        <div className="mb-1 rounded bg-blue-50 px-2 py-1 text-[11px] text-blue-700">
-          Draft outline
-        </div>
-        <div className="mb-1 rounded bg-blue-50 px-2 py-1 text-[11px] text-blue-700">
-          Create slides
-        </div>
-        <div className="rounded bg-blue-50 px-2 py-1 text-[11px] text-blue-700">
-          Rehearse
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
 const Feature = () => {
   return (
     <section
@@ -95,7 +51,9 @@ const Feature = () => {
       className="flex w-full flex-col items-center bg-white px-4 pt-10 pb-20 md:px-8"
     >
       <div className="mb-8 w-fit rounded-full border border-gray-100 bg-white px-4 py-1.5 shadow-sm">
-        <span className="text-sm font-medium tracking-tight text-gray-600">Features</span>
+        <span className="text-sm font-medium tracking-tight text-gray-600">
+          Features
+        </span>
       </div>
 
       <h2 className="mb-10 text-center text-4xl leading-tight font-semibold tracking-tight text-black md:text-5xl">
@@ -108,29 +66,34 @@ const Feature = () => {
         <div className="flex h-[420px] flex-col overflow-hidden rounded-[2rem] border-2 border-gray-100 bg-linear-to-b from-[#FFFFFF] via-[#F4F4F4] to-[#FAFAFA] p-8">
           <h3 className="mb-3 text-2xl font-semibold">Smart Auto-Scheduling</h3>
           <p className="mb-8 leading-relaxed text-gray-500">
-            Let AI instantly find the perfect time slots for your tasks and meetings without the back-and-forth.
+            Tell Archr what needs doing and by when. It finds the right slots,
+            respects your existing commitments, and builds a realistic plan
+            automatically.
           </p>
-          <div className="relative mt-auto flex w-full grow items-center justify-center">
+          <div className="relative mt-auto flex w-full grow items-center justify-center h-full">
             <CalendarGraphic />
           </div>
         </div>
 
         <div className="flex h-[420px] flex-col overflow-hidden rounded-[2rem] border-2 border-gray-100 bg-linear-to-b from-[#FFFFFF] via-[#F4F4F4] to-[#FAFAFA] p-8">
-          <h3 className="mb-3 text-2xl font-semibold">Unified Task Management</h3>
+          <h3 className="mb-3 text-2xl font-semibold">Habit Scheduling</h3>
           <p className="mb-8 leading-relaxed text-gray-500">
-            Stop switching apps. Bring your daily to-do list and your schedule together into one seamless view.
+            Gym, reading, language practice. Add the habits you want to keep and
+            Archr protects time for them every week.
           </p>
-          <div className="relative mt-auto flex w-full grow items-center justify-center">
+          <div className="relative mt-auto flex w-full grow items-center justify-center h-full">
             <ChecklistFlowGraphic />
           </div>
         </div>
 
         <div className="flex h-[420px] flex-col overflow-hidden rounded-[2rem] border-2 border-gray-100 bg-linear-to-b from-[#FFFFFF] via-[#F4F4F4] to-[#FAFAFA] p-8">
-          <h3 className="mb-3 text-2xl font-semibold">Productivity Analytics</h3>
+          <h3 className="mb-3 text-2xl font-semibold">Energy-Aware Planning</h3>
           <p className="mb-8 leading-relaxed text-gray-500">
-            Understand exactly where your hours go and optimize your week with visual, actionable insights.
+            Archr knows your peak hours. Deep work gets scheduled when you're
+            sharpest. Admin tasks fill the low-energy gaps. Your calendar
+            finally matches your energy.
           </p>
-          <div className="relative mt-auto flex w-full grow items-center justify-center">
+          <div className="relative mt-auto flex w-full grow items-center justify-center h-full">
             <AnalyticsGraphic />
           </div>
         </div>
@@ -139,25 +102,32 @@ const Feature = () => {
       <div className="mt-6 grid w-full max-w-6xl grid-cols-1 gap-6 md:grid-cols-2">
         <div className="flex min-h-[220px] flex-col items-center overflow-hidden rounded-[2rem] border-2 border-gray-100 bg-linear-to-b from-[#FFFFFF] via-[#F4F4F4] to-[#FAFAFA] p-8 md:flex-row">
           <div className="mb-6 flex-1 pr-4 text-center md:mb-0 md:text-left">
-            <h3 className="mb-3 text-2xl font-semibold">Dynamic Time Blocking</h3>
+            <h3 className="mb-3 text-2xl font-semibold">
+              Dynamic Rescheduling
+            </h3>
             <p className="mx-auto max-w-[250px] leading-relaxed text-gray-500 md:mx-0">
-              Automatically protect your focus time. If a meeting runs late, your schedule instantly adapts and shifts.
+              When a meeting runs long or priorities shift, Archr doesn't leave
+              you with a broken schedule. It recalculates your entire week in
+              real time, protecting every deadline.
             </p>
           </div>
-          <div className="relative flex h-24 w-48 shrink-0 items-center justify-center">
-            <TimeBlockGraphic />
+          <div className="relative w-56 shrink-0 self-center">
+            <ConflictResolution />
           </div>
         </div>
 
         <div className="flex min-h-[220px] flex-col items-center overflow-hidden rounded-[2rem] border-2 border-gray-100 bg-linear-to-b from-[#FFFFFF] via-[#F4F4F4] to-[#FAFAFA] p-8 md:flex-row">
           <div className="mb-6 flex-1 pr-4 text-center md:mb-0 md:text-left">
-            <h3 className="mb-3 text-2xl font-semibold">Intelligent Task Breakdown</h3>
+            <h3 className="mb-3 text-2xl font-semibold">
+              Intelligent Task Breakdown
+            </h3>
             <p className="mx-auto max-w-[250px] leading-relaxed text-gray-500 md:mx-0">
-              Turn daunting projects into bite-sized actions. Let AI automatically split complex events into a clear sequence of manageable sub-tasks.
+              Drop in a project and Archr splits it into actionable sub-tasks,
+              like Research, Draft, Review, each with its own time block.
             </p>
           </div>
-          <div className="relative flex h-24 w-48 shrink-0 items-center justify-center">
-            <TaskSplitGraphic />
+          <div className="relative w-52 shrink-0">
+            <TaskBreakdownAnimation />
           </div>
         </div>
       </div>

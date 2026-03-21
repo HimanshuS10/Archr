@@ -132,49 +132,50 @@
   }
 }
 
-/* FullCalendar styling to match Google Calendar */
+/* FullCalendar light-mode styling */
 .archr-calendar .fc {
-  --fc-border-color: rgba(148, 163, 184, 0.2);
+  --fc-border-color: #e5e7eb;
   --fc-page-bg-color: transparent;
-  --fc-now-indicator-color: #3b82f6;
-  --fc-today-bg-color: rgba(59, 130, 246, 0.08);
-  --fc-event-bg-color: #3b82f6;
-  --fc-event-border-color: #3b82f6;
+  --fc-now-indicator-color: #2563eb;
+  --fc-today-bg-color: rgba(37, 99, 235, 0.05);
+  --fc-event-bg-color: #2563eb;
+  --fc-event-border-color: #1d4ed8;
   --fc-event-text-color: #ffffff;
-  --fc-list-event-hover-bg-color: rgba(59, 130, 246, 0.12);
-  color: #e2e8f0;
+  --fc-list-event-hover-bg-color: rgba(37, 99, 235, 0.08);
+  color: #1f2937;
   font-size: 13px;
 }
 
 .archr-calendar .fc .fc-toolbar-title {
   font-size: 1.05rem;
   font-weight: 600;
-  color: #f8fafc;
+  color: #111827;
 }
 
 .archr-calendar .fc .fc-button {
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  color: #e2e8f0;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
   text-transform: capitalize;
   padding: 0.35rem 0.6rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .archr-calendar .fc .fc-button:hover,
 .archr-calendar .fc .fc-button:focus {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: rgba(59, 130, 246, 0.6);
-  color: #ffffff;
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  color: #111827;
 }
 
 .archr-calendar .fc .fc-button-primary:not(:disabled).fc-button-active {
-  background: rgba(59, 130, 246, 0.3);
-  border-color: rgba(59, 130, 246, 0.7);
+  background: #1d4ed8;
+  border-color: #1e40af;
   color: #ffffff;
 }
 
 .archr-calendar .fc .fc-col-header-cell-cushion {
-  color: #94a3b8;
+  color: #6b7280;
   font-weight: 600;
   text-transform: uppercase;
   font-size: 0.7rem;
@@ -183,18 +184,18 @@
 
 .archr-calendar .fc .fc-timegrid-slot-label,
 .archr-calendar .fc .fc-timegrid-axis-cushion {
-  color: #94a3b8;
+  color: #9ca3af;
   font-size: 0.7rem;
 }
 
 .archr-calendar .fc .fc-daygrid-day-number,
 .archr-calendar .fc .fc-timegrid-axis {
-  color: #cbd5f5;
+  color: #374151;
 }
 
 .archr-calendar .fc .fc-scrollgrid,
 .archr-calendar .fc .fc-scrollgrid-section > td {
-  border-color: rgba(148, 163, 184, 0.2);
+  border-color: #e5e7eb;
 }
 
 .archr-calendar .fc .fc-event {
@@ -202,17 +203,17 @@
   padding: 2px 6px;
   font-size: 0.75rem;
   font-weight: 500;
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2);
 }
 
 .archr-calendar .fc .fc-timegrid-now-indicator-line {
-  border-color: #3b82f6;
+  border-color: #4f46e5;
   border-width: 2px;
 }
 
 .archr-calendar .fc .fc-scroller {
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+  scrollbar-color: #d1d5db transparent;
 }
 
 .archr-calendar .fc .fc-scroller::-webkit-scrollbar {
@@ -225,23 +226,14 @@
 }
 
 .archr-calendar .fc .fc-scroller::-webkit-scrollbar-thumb {
-  background: linear-gradient(
-    180deg,
-    rgba(148, 163, 184, 0.65),
-    rgba(100, 116, 139, 0.7)
-  );
+  background: #d1d5db;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .archr-calendar .fc .fc-scroller::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(
-    180deg,
-    rgba(203, 213, 225, 0.8),
-    rgba(148, 163, 184, 0.8)
-  );
+  background: #9ca3af;
 }
 
 .archr-calendar .fc .fc-scroller::-webkit-scrollbar-button {
   display: none;
-}
+}

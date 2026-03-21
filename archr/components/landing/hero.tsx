@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import HeroAnimation from "./animation/Heroanimation";
+import BorderBeam from "./animation/BorderBeam";
 
 const TYPING_WORDS = ["Week", "Focus", "Calendar", "Deadlines"];
 
@@ -107,8 +109,10 @@ export default function Hero() {
           <div className="lg:pt-3 ">
             <div className="text-left">
               <p className="text-[17px] text-left font-semibold tracking-tighter leading-relaxed text-black/60">
-                Archr helps you auto-plan tasks around your real schedule, so
-                you always know what to do next.
+                Archr is an AI calendar that
+                automatically schedules your tasks, projects, and goals around
+                your priorities and deadlines, so your week always reflects
+                what actually matters.
               </p>
             </div>
             <div className="mt-6 flex justify-start">
@@ -116,103 +120,15 @@ export default function Hero() {
                 href="#waitlist"
                 className="inline-flex items-center rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-300 hover:via-blue-400 hover:to-blue-500"
               >
-                Join Waitlist
+                Join the waitlist →
               </a>
             </div>
           </div>
         </div>
-
-        {/* Calendar UI Comparison Container */}
-        <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-linear-to-b from-white to-[#ececec] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.08)] md:p-10">
-          
-          <div className="flex flex-col gap-6 md:flex-row md:items-stretch md:gap-8">
-            {/* Before Column */}
-            <div className="flex-1 rounded-2xl border border-black/5 bg-black/[0.03] p-5 transition-all">
-              <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-black/40">
-                Messy Schedule
-              </h3>
-              <div className="flex flex-col gap-3">
-                {activeScenario.beforeTasks.map((task, idx) => {
-                  const [time, name] = task.split(" - ");
-                  return (
-                    <div
-                      key={`before-${scenarioIndex}-${idx}`}
-                      className="flex items-start rounded-xl border border-black/5 bg-white/50 p-3 shadow-sm transition-all animate-in fade-in slide-in-from-bottom-2 duration-500"
-                    >
-                      <span className="w-14 text-xs font-semibold text-black/40">
-                        {time}
-                      </span>
-                      <span className="text-sm font-medium text-black/60">
-                        {name}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Middle Arrow */}
-            <div className="flex items-center justify-center md:flex-col">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600 shadow-sm ring-4 ring-white">
-                <svg
-                  className="h-5 w-5 rotate-90 md:rotate-0"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M14 5l7 7m0 0l-7 7m7-7H3"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            {/* After Column */}
-            <div className="flex-1 rounded-2xl border border-blue-600/10 bg-white p-5 shadow-[0_8px_30px_rgb(37,99,235,0.08)] transition-all">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-blue-600">
-                  With Archr
-                </h3>
-                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-blue-600 animate-pulse">
-                  {activeScenario.label}
-                </span>
-              </div>
-              <div className="flex flex-col gap-3">
-                {activeScenario.afterTasks.map((task, idx) => {
-                  const [time, name] = task.split(" - ");
-                  return (
-                    <div
-                      key={`after-${scenarioIndex}-${idx}`}
-                      className="flex items-start rounded-xl border border-blue-100 bg-blue-50/50 p-3 shadow-sm transition-all animate-in fade-in slide-in-from-bottom-2 duration-500"
-                    >
-                      <span className="w-14 text-xs font-bold text-blue-600">
-                        {time}
-                      </span>
-                      <span className="text-sm font-semibold text-slate-800">
-                        {name}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Insight Banner */}
-          <div className="mt-8 flex justify-center">
-            <div
-              key={scenarioIndex}
-              className="inline-flex items-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-medium text-white shadow-xl animate-in zoom-in-95 fade-in duration-500"
-            >
-              <span className="text-blue-400">✨</span>
-              {activeScenario.insight}
-            </div>
-          </div>
-
-        </div>
+        <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.08)]">
+          <HeroAnimation />
+          <BorderBeam />
+        </div>{" "}
       </div>
     </section>
   );
