@@ -26,8 +26,8 @@ export default function Footer() {
           <div className="flex items-center">
             <ul className="flex flex-row items-center gap-6">
               <li><Link href="/" className="text-gray-600 hover:text-gray-900 text-sm">Home</Link></li>
-              <li><Link href="/pricing" className="text-gray-600 hover:text-gray-900 text-sm">Pricing</Link></li>
-              <li><Link href="/integrations" className="text-gray-600 hover:text-gray-900 text-sm">Integrations</Link></li>
+              <li><Link href="#pricing" className="text-gray-600 hover:text-gray-900 text-sm">Pricing</Link></li>
+              <li><Link href="#integrations" className="text-gray-600 hover:text-gray-900 text-sm">Integrations</Link></li>
             </ul>
           </div>
           

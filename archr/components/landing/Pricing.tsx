@@ -1,122 +1,131 @@
 "use client";
 
-import { Package, Star, Zap, Check } from "lucide-react";
+import { Package, Star, Zap, Check, X, CircleDot } from "lucide-react";
 
 export default function Pricing() {
   return (
     <section id="pricing" className="w-full bg-white py-24 px-4 md:px-8 flex flex-col items-center">
-      
-      {/* HEADER SECTION */}
+
       <div className="w-fit px-4 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm mb-6">
         <span className="text-gray-600 text-sm font-medium tracking-tight">
           Pricing
         </span>
       </div>
-      <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-center mb-16">
+      <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-center mb-4">
         Simple Plans, Clear Value
       </h2>
+      <p className="text-gray-400 text-center text-base mb-16 max-w-md">
+        Start free, upgrade when you need the full AI experience.
+      </p>
 
-      {/* PRICING CARDS GRID */}
       <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-        
-        {/* CARD 1: Starter */}
+
         <div className="bg-white border border-gray-100 rounded-[2rem] p-8 shadow-sm flex flex-col mt-8 md:mt-12">
           <div className="flex items-center gap-3 mb-6">
-            <div className="bg-gray-100 p-2 rounded-full shrink-0">
-              <Package size={20} className="text-gray-800" />
-            </div>
-            <h3 className="text-2xl font-medium tracking-tight">Starter</h3>
+            {/* <div className="bg-gray-100 p-2 rounded-full shrink-0">
+              <CircleDot size={20} className="text-gray-800" />
+            </div> */}
+            <h3 className="text-2xl font-medium tracking-tight">Free</h3>
           </div>
-          
+
           <div className="mb-4">
             <span className="text-5xl font-medium tracking-tight">$0</span>
             <span className="text-gray-500 font-medium ml-2">/ mo</span>
           </div>
           <p className="text-gray-500 text-sm mb-8 h-10">
-            Perfect for solo founders and early-stage projects.
+            Everything you need to get started and stay organized.
           </p>
-          
-          <button className="w-full bg-[#222222] hover:bg-black text-white py-3.5 rounded-full font-medium transition-colors mb-8">
-            Get Started
-          </button>
-          
+
           <hr className="border-gray-100 mb-8" />
-          
+
           <ul className="space-y-4 text-sm text-gray-600 flex-1">
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> 1 connected account</li>
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Real-time dashboard access</li>
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Basic reporting</li>
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Email support</li>
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Up to 2 team members</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-emerald-400" /> Google Calendar sync</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-emerald-400" /> Month, week & day views</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-emerald-400" /> Up to 10 active tasks</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-emerald-400" /> Event creation & editing</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-emerald-400" /> 3 AI subtask generations / month</li>
+          </ul>
+
+          <hr className="border-gray-100 my-8" />
+
+          <ul className="space-y-4 text-sm text-gray-400 flex-1">
+            <li className="flex items-center gap-3"><X size={18} className="text-gray-300" /> AI smart scheduling</li>
+            <li className="flex items-center gap-3"><X size={18} className="text-gray-300" /> File attachments</li>
+            <li className="flex items-center gap-3"><X size={18} className="text-gray-300" /> Dynamic rescheduling</li>
+            <li className="flex items-center gap-3"><X size={18} className="text-gray-300" /> Productivity analytics</li>
           </ul>
         </div>
 
-        {/* CARD 2: Growth (Highlighted) */}
         <div className="bg-[#4F84FF] rounded-[2rem] flex flex-col shadow-lg shadow-blue-500/20 relative z-10 md:-mt-4">
           <div className="text-center text-white py-3 text-sm font-medium tracking-wide">
-            Best Deal
+            Most Popular
           </div>
           <div className="bg-white rounded-[1.75rem] p-8 flex-1 flex flex-col m-[3px] mt-0">
             <div className="flex items-center gap-3 mb-6">
-              <div className="bg-blue-50 p-2 rounded-full shrink-0">
-                <Star size={20} className="text-[#4F84FF] fill-[#4F84FF]" />
-              </div>
-              <h3 className="text-2xl font-medium tracking-tight">Growth</h3>
+              {/* <div className="bg-blue-50 p-2 rounded-full shrink-0">
+                <CircleDot size={20} className="text-[#4F84FF] fill-[#4F84FF]" />
+              </div> */}
+              <h3 className="text-2xl font-medium tracking-tight">Pro</h3>
             </div>
-            
-            <div className="mb-4">
-              <span className="text-5xl font-medium tracking-tight">$25</span>
+
+            <div className="mb-1">
+              <span className="text-5xl font-medium tracking-tight">$5</span>
               <span className="text-gray-500 font-medium ml-2">/ mo</span>
             </div>
+            <p className="text-gray-400 text-xs mb-4">or $45 / year (save 25%)</p>
             <p className="text-gray-500 text-sm mb-8 h-10">
-              Ideal for growing teams who need deeper insights.
+              Unlock all AI features to plan smarter, not harder.
             </p>
-            
-            <button className="w-full bg-[#4F84FF] hover:bg-blue-600 text-white py-3.5 rounded-full font-medium transition-colors mb-8 shadow-sm">
-              Get Started
-            </button>
-            
+
             <hr className="border-gray-100 mb-8" />
-            
+
             <ul className="space-y-4 text-sm text-gray-600 flex-1">
-              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Up to 5 connected accounts</li>
-              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Advanced analytics</li>
-              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Automated reports</li>
-              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Priority email support</li>
-              <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Up to 10 team members</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-[#4F84FF]" /> Everything in Free</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-[#4F84FF]" /> Unlimited tasks</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-[#4F84FF]" /> Unlimited AI subtask generation</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-[#4F84FF]" /> AI smart calendar scheduling</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-[#4F84FF]" /> File attachments on tasks</li>
+              <li className="flex items-center gap-3"><Check size={18} className="text-[#4F84FF]" /> Priority labels & conflict warnings</li>
+            </ul>
+
+            <hr className="border-gray-100 my-8" />
+
+            <ul className="space-y-4 text-sm text-gray-400 flex-1">
+              <li className="flex items-center gap-3"><X size={18} className="text-gray-300" /> Dynamic rescheduling</li>
+              <li className="flex items-center gap-3"><X size={18} className="text-gray-300" /> Energy-aware scheduling</li>
+              <li className="flex items-center gap-3"><X size={18} className="text-gray-300" /> Productivity analytics</li>
             </ul>
           </div>
         </div>
 
-        {/* CARD 3: Scale */}
         <div className="bg-white border border-gray-100 rounded-[2rem] p-8 shadow-sm flex flex-col mt-8 md:mt-12">
           <div className="flex items-center gap-3 mb-6">
-            <div className="bg-gray-100 p-2 rounded-full shrink-0">
-              <Zap size={20} className="text-gray-800" />
-            </div>
-            <h3 className="text-2xl font-medium tracking-tight">Scale</h3>
+            {/* <div className="bg-gray-100 p-2 rounded-full shrink-0">
+              <CircleDot size={20} className="text-gray-800" />
+            </div> */}
+            <h3 className="text-2xl font-medium tracking-tight">Pro+</h3>
           </div>
-          
-          <div className="mb-4">
-            <span className="text-5xl font-medium tracking-tight">$75</span>
+
+          <div className="mb-1">
+            <span className="text-5xl font-medium tracking-tight">$10</span>
             <span className="text-gray-500 font-medium ml-2">/ mo</span>
           </div>
+          <p className="text-gray-400 text-xs mb-4">or $90 / year (save 25%)</p>
           <p className="text-gray-500 text-sm mb-8 h-10">
-            For established teams ready to maximize performance.
+            The full AI experience for power users who want every edge.
           </p>
-          
-          <button className="w-full bg-[#222222] hover:bg-black text-white py-3.5 rounded-full font-medium transition-colors mb-8">
-            Contact Us
-          </button>
-          
+
           <hr className="border-gray-100 mb-8" />
-          
+
           <ul className="space-y-4 text-sm text-gray-600 flex-1">
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Unlimited connected accounts</li>
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Custom dashboards</li>
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Exportable reports</li>
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Dedicated support</li>
-            <li className="flex items-center gap-3"><Check size={18} className="text-gray-400" /> Unlimited team members</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-emerald-400" /> Everything in Pro</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-emerald-400" /> Dynamic rescheduling</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-emerald-400" /> Energy-aware scheduling</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-emerald-400" /> Habit tracking & scheduling</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-emerald-400" /> Weekly productivity analytics</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-emerald-400" /> Multiple calendar connections</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-emerald-400" /> Export tasks & reports</li>
+            <li className="flex items-center gap-3"><Check size={18} className="text-emerald-400" /> Early access to new features</li>
           </ul>
         </div>
 

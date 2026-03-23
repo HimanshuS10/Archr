@@ -91,10 +91,10 @@ export default function Hero() {
   }, []);
 
   return (
-    <section className="w-full bg-white pt-28 pb-12">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6">
-        <div className="grid gap-10 lg:grid-cols-[1fr_360px] lg:items-start">
-          <h1 className="text-3xl leading-[1.05] font-medium tracking-tight text-black md:text-[57px]">
+    <section className="w-full bg-white pt-24 pb-12 sm:pt-28">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 sm:gap-12 sm:px-6">
+        <div className="grid gap-6 sm:gap-10 lg:grid-cols-[1fr_360px] lg:items-start">
+          <h1 className="text-[28px] leading-[1.1] font-medium tracking-tight text-black sm:text-3xl md:text-[57px] md:leading-[1.05]">
             Plan Smarter,
             <br />
             Own Your{" "}
@@ -106,16 +106,14 @@ export default function Hero() {
             </span>
           </h1>
 
-          <div className="lg:pt-3 ">
-            <div className="text-left">
-              <p className="text-[17px] text-left font-semibold tracking-tighter leading-relaxed text-black/60">
-                Archr is an AI calendar that
-                automatically schedules your tasks, projects, and goals around
-                your priorities and deadlines, so your week always reflects
-                what actually matters.
-              </p>
-            </div>
-            <div className="mt-6 flex justify-start">
+          <div className="lg:pt-3">
+            <p className="text-[15px] font-semibold tracking-tighter leading-relaxed text-black/60 sm:text-[17px]">
+              Archr is an AI calendar that
+              automatically schedules your tasks, projects, and goals around
+              your priorities and deadlines, so your week always reflects
+              what actually matters.
+            </p>
+            <div className="mt-5 flex sm:mt-6">
               <a
                 href="#waitlist"
                 className="inline-flex items-center rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-300 hover:via-blue-400 hover:to-blue-500"
@@ -125,10 +123,10 @@ export default function Hero() {
             </div>
           </div>
         </div>
-        <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.08)]">
+        <div className="relative overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.08)] sm:rounded-3xl">
           <HeroAnimation />
           <BorderBeam />
-        </div>{" "}
+        </div>
       </div>
     </section>
   );

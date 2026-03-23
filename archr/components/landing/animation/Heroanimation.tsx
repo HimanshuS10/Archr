@@ -61,6 +61,14 @@ export default function HeroAnimation() {
   const gridRef    = useRef<HTMLDivElement>(null);
   const btnRef     = useRef<HTMLButtonElement>(null);
   const runningRef = useRef(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const [taskStates,  setTaskStates]  = useState(TASKS.map(() => ({ hl: false, checked: false, struck: false })));
   const [visEvents,   setVisEvents]   = useState<boolean[]>(EVENTS.map(() => false));
@@ -173,17 +181,18 @@ export default function HeroAnimation() {
       style={{
         position: "relative",
         display: "flex",
-        gap: 12,
-        alignItems: "flex-start",
+        flexDirection: isMobile ? "column" : "row",
+        gap: isMobile ? 10 : 12,
+        alignItems: isMobile ? "stretch" : "flex-start",
         borderRadius: 20,
-        padding: 14,
+        padding: isMobile ? 10 : 14,
         width: "100%",
         fontFamily: "inherit",
         overflow: "hidden",
       }}
     >
       {/* ── Task list ── */}
-      <div style={{ width: 198, flexShrink: 0, background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ width: isMobile ? "100%" : 198, flexShrink: 0, background: "#fff", border: "0.5px solid #D3D1C7", borderRadius: 12, overflow: "hidden" }}>
         {/* Header */}
         <div style={{ background: "#EFF6FF", borderBottom: "0.5px solid #BFDBFE", padding: "7px 11px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase" as const, color: "#888780" }}>Tasks</span>
@@ -192,11 +201,11 @@ export default function HeroAnimation() {
           </span>
         </div>
 
-        {/* Task rows */}
-        {TASKS.map((task, i) => {
+        {/* Task rows -- on mobile show first 6 + a summary */}
+        {(isMobile ? TASKS.slice(0, 6) : TASKS).map((task, i) => {
           const ts = taskStates[i];
           return (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 11px", borderBottom: i < TASKS.length - 1 ? "0.5px solid #F1EFE8" : "none", background: ts.hl ? "#EFF6FF" : "#fff", transition: "background 0.2s" }}>
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 11px", borderBottom: "0.5px solid #F1EFE8", background: ts.hl ? "#EFF6FF" : "#fff", transition: "background 0.2s" }}>
               <div style={{ width: 13, height: 13, borderRadius: "50%", flexShrink: 0, border: `1.5px solid ${ts.checked ? "#3B82F6" : "#D3D1C7"}`, background: ts.checked ? "#3B82F6" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.22s" }}>
                 {ts.checked && (
                   <svg width="7" height="5" viewBox="0 0 7 5" fill="none">
@@ -213,12 +222,17 @@ export default function HeroAnimation() {
             </div>
           );
         })}
+        {isMobile && (
+          <div style={{ padding: "5px 11px", fontSize: 9, color: "#93928C", textAlign: "center", borderBottom: "0.5px solid #F1EFE8" }}>
+            +{TASKS.length - 6} more tasks
+          </div>
+        )}
 
         {/* Button */}
         <div style={{ padding: "8px 11px" }}>
           <button
             ref={btnRef}
-            style={{ width: "100%", padding: 8, borderRadius: 8, border: "none", background: btnPressed ? "#1D4ED8" : "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600,   letterSpacing: "0.02em", transform: btnPressed ? "scale(0.97)" : "scale(1)", transition: "background 0.15s, transform 0.1s", fontFamily: "inherit" }}
+            style={{ width: "100%", padding: 8, borderRadius: 8, border: "none", background: btnPressed ? "#1D4ED8" : "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600, letterSpacing: "0.02em", transform: btnPressed ? "scale(0.97)" : "scale(1)", transition: "background 0.15s, transform 0.1s", fontFamily: "inherit" }}
           >
             Make Schedule
           </button>
@@ -231,41 +245,45 @@ export default function HeroAnimation() {
           Week of Mar 17
         </div>
 
-        {/* Grid */}
-        <div ref={gridRef} style={{ display: "grid", gridTemplateColumns: `${TIME_COL_W}px repeat(5, minmax(0,1fr))` }}>
-          {/* Day headers */}
-          <div style={s.ch} />
-          {DAYS.map((d) => <div key={d} style={s.ch}>{d}</div>)}
+        {/* Horizontally scrollable wrapper on mobile */}
+        <div style={{ overflowX: isMobile ? "auto" : "visible", WebkitOverflowScrolling: "touch" as any }}>
+          <div style={{ minWidth: isMobile ? 420 : "auto", position: "relative" }}>
+            {/* Grid */}
+            <div ref={gridRef} style={{ display: "grid", gridTemplateColumns: `${TIME_COL_W}px repeat(5, minmax(0,1fr))` }}>
+              {/* Day headers */}
+              <div style={s.ch} />
+              {DAYS.map((d) => <div key={d} style={s.ch}>{d}</div>)}
 
-          {/* Hour rows */}
-          {HOURS.map((hr) => [
-            <div key={`tl-${hr}`} style={{ ...s.tl, height: ROW_H }}>{hr}</div>,
-            ...DAYS.map((_, di) => (
-              <div key={`${hr}-${di}`} style={{ ...s.dc, height: ROW_H }} />
-            )),
-          ])}
-        </div>
+              {/* Hour rows */}
+              {HOURS.map((hr) => [
+                <div key={`tl-${hr}`} style={{ ...s.tl, height: ROW_H }}>{hr}</div>,
+                ...DAYS.map((_, di) => (
+                  <div key={`${hr}-${di}`} style={{ ...s.dc, height: ROW_H }} />
+                )),
+              ])}
+            </div>
 
-        {/* Event overlay — absolutely positioned over the grid */}
-        <div style={{ position: "absolute", top: CAL_TITLE_H + HEADER_H, left: 0, right: 0, bottom: 0, pointerEvents: "none" }}>
-          {EVENTS.map((ev, i) => {
-            const visible = visEvents[i];
-            return (
-              <div
-                key={i}
-                style={{
-                  ...getEventStyle(i),
-                  // Override the static top since we're inside the overlay (already offset by header)
-                  top: (ev[1] as number) * ROW_H + 2,
-                  opacity: visible ? 1 : 0,
-                  transform: visible ? "scaleY(1)" : "scaleY(0.6)",
-                }}
-              >
-                <span style={{ fontSize: 8, fontWeight: 500, color: ev[7] as string, display: "block" }}>{ev[3] as string}</span>
-                <span style={{ fontSize: 7, color: ev[8] as string, display: "block" }}>{ev[4] as string}</span>
-              </div>
-            );
-          })}
+            {/* Event overlay */}
+            <div style={{ position: "absolute", top: HEADER_H, left: 0, right: 0, bottom: 0, pointerEvents: "none" }}>
+              {EVENTS.map((ev, i) => {
+                const visible = visEvents[i];
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      ...getEventStyle(i),
+                      top: (ev[1] as number) * ROW_H + 2,
+                      opacity: visible ? 1 : 0,
+                      transform: visible ? "scaleY(1)" : "scaleY(0.6)",
+                    }}
+                  >
+                    <span style={{ fontSize: 8, fontWeight: 500, color: ev[7] as string, display: "block" }}>{ev[3] as string}</span>
+                    <span style={{ fontSize: 7, color: ev[8] as string, display: "block" }}>{ev[4] as string}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
