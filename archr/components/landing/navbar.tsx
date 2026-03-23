@@ -40,7 +40,7 @@ export default function Navbar() {
 
         <a
           href="#waitlist"
-          className="text-sm text-black/70 transition hover:text-black md:hidden"
+          className="text-sm text-white transition hover:text-black bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-3 py-2 rounded-4xl hover:from-blue-300 hover:via-blue-400 hover:to-blue-500 hover:cursor-pointer md:hidden"
         >
           Join Waitlist
         </a>
