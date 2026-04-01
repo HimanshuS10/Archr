@@ -27,14 +27,15 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       description?: string;
       timeZone?: string;
       colorId?: string;
+      locked?: boolean;
       repeat?: RepeatOption;
       repeatUntil?: string;
       repeatCustom?: {
         frequency: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
-        interval?: number; // default 1
-        byDay?: string[]; // ["MO","WE","FR"]
-        byMonthDay?: number[]; // [10, 20]
-        count?: number; // optional alternative to UNTIL
+        interval?: number;
+        byDay?: string[];
+        byMonthDay?: number[];
+        count?: number;
       };
     };
 
@@ -93,6 +94,11 @@ export async function PATCH(request: Request, { params }: RouteContext) {
           },
           colorId: body.colorId || undefined,
           ...(recurrence !== undefined ? { recurrence } : {}),
+          extendedProperties: {
+            private: {
+              locked: body.locked ? "true" : "false",
+            },
+          },
         }),
       },
     );

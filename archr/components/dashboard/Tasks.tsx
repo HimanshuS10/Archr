@@ -36,6 +36,14 @@ type Subtask = {
   ai_generated: boolean;
 };
 
+type ScheduledSlot = {
+  subtask_id: string;
+  title: string;
+  start: string;
+  end: string;
+  reasoning?: string;
+};
+
 type Task = {
   id: string;
   user_id: string;
@@ -84,6 +92,12 @@ export default function Tasks({ isExpanded }: TasksProp) {
   // schedule-to-calendar prompt
   const [schedulePromptTaskId, setSchedulePromptTaskId] = useState<string | null>(null);
   const [schedulingToCalendar, setSchedulingToCalendar] = useState(false);
+
+  // preview step: proposed slots from scheduler before committing
+  const [previewSlots, setPreviewSlots] = useState<ScheduledSlot[]>([]);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState("");
+  const [constraintLevel, setConstraintLevel] = useState(0);
 
   // ── Form state ──────────────────────────────────────────────
   const [title, setTitle] = useState("");
@@ -297,52 +311,114 @@ export default function Tasks({ isExpanded }: TasksProp) {
     }
   };
 
-  // ── Schedule subtasks as Google Calendar events ─────────────
-  const scheduleSubtasksToCalendar = async (taskId: string) => {
+  // ── Step 1: Fetch proposed slots from scheduler (preview) ────
+  const fetchSchedulePreview = async (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
     const subs = subtasksMap[taskId];
     if (!task || !subs?.length) return;
+
+    setLoadingPreview(true);
+    setPreviewError("");
+    setPreviewSlots([]);
+
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+      const scheduleRes = await fetch("/api/ai/schedule-subtasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task: {
+            id: task.id,
+            title: task.title,
+            deadline: task.deadline,
+            priority: task.priority,
+          },
+          subtasks: subs.map((sub) => ({
+            id: sub.id,
+            title: sub.title,
+            estimated_minutes: sub.estimated_minutes,
+            order: sub.order,
+          })),
+          timeZone: tz,
+        }),
+      });
+
+      const scheduleJson = await scheduleRes.json().catch(() => null);
+      if (!scheduleRes.ok) {
+        throw new Error(scheduleJson?.error ?? "Could not smart-schedule subtasks.");
+      }
+
+      const slots = (scheduleJson?.scheduled ?? []) as ScheduledSlot[];
+      if (!slots.length) {
+        throw new Error("No available slots were found before the deadline.");
+      }
+
+      setPreviewSlots(slots);
+      setConstraintLevel(scheduleJson?.constraintLevel ?? 0);
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : "Failed to generate schedule preview.");
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  // ── Step 2: Commit previewed slots to Google Calendar ──────
+  const commitPreviewedSlots = async (taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || !previewSlots.length) return;
 
     setSchedulingToCalendar(true);
     setError("");
 
     try {
-      const now = new Date();
-      const deadlineDate = task.deadline ? new Date(task.deadline) : new Date(now.getTime() + 7 * 86400000);
-      const availableMs = Math.max(deadlineDate.getTime() - now.getTime(), 3600000);
-      const totalEstimatedMs = subs.reduce((sum, s) => sum + (s.estimated_minutes ?? 30) * 60000, 0);
-
-      // Distribute subtasks evenly across available time, leaving buffer
-      const usableMs = Math.min(availableMs * 0.85, availableMs - 3600000);
-      const gapMs = subs.length > 1
-        ? Math.max((usableMs - totalEstimatedMs) / (subs.length - 1), 1800000)
-        : 0;
-
-      let cursor = new Date(now.getTime() + 3600000); // start 1 hour from now
-
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
-      for (const sub of subs) {
-        const durationMs = (sub.estimated_minutes ?? 30) * 60000;
-        const start = new Date(cursor);
-        const end = new Date(start.getTime() + durationMs);
-
-        await fetch("/api/google/events", {
+      for (const slot of previewSlots) {
+        const gcalRes = await fetch("/api/google/events", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: `${sub.title}`,
-            description: `Subtask for: ${task.title}`,
-            start: start.toISOString(),
-            end: end.toISOString(),
+            title: slot.title,
+            description:
+              `Subtask for: ${task.title}` +
+              (slot.reasoning ? `\n\nSmart scheduling: ${slot.reasoning}` : ""),
+            start: slot.start,
+            end: slot.end,
             timeZone: tz,
+            colorId:
+              task.priority === "high"
+                ? "11"
+                : task.priority === "medium"
+                  ? "5"
+                  : "2",
           }),
         });
 
-        cursor = new Date(end.getTime() + gapMs);
+        const gcalJson = await gcalRes.json().catch(() => null);
+        if (!gcalRes.ok) {
+          throw new Error(gcalJson?.error ?? "Failed to create Google Calendar event.");
+        }
+
+        await fetch("/api/user-events", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            google_event_id: gcalJson?.id ?? null,
+            title: slot.title,
+            description: `Subtask for: ${task.title}`,
+            start: slot.start,
+            end: slot.end,
+            recurrence: "none",
+            is_fixed: false,
+            priority: task.priority,
+          }),
+        });
       }
 
       setSchedulePromptTaskId(null);
+      setPreviewSlots([]);
+      setConstraintLevel(0);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to schedule events.");
     } finally {
@@ -547,80 +623,225 @@ export default function Tasks({ isExpanded }: TasksProp) {
         )}
       </div>
 
-      {/* ── Schedule-to-Calendar Prompt ── */}
+      {/* ── Schedule-to-Calendar 2-Step Preview Modal ── */}
       {schedulePromptTaskId && (() => {
         const promptTask = tasks.find((t) => t.id === schedulePromptTaskId);
         const promptSubs = subtasksMap[schedulePromptTaskId] ?? [];
+        const hasPreview = previewSlots.length > 0;
+
+        const formatSlotTime = (iso: string) =>
+          new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const formatSlotDate = (iso: string) =>
+          new Date(iso).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+        const slotDuration = (start: string, end: string) =>
+          Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000);
+
+        const slotsByDate = previewSlots.reduce<Record<string, ScheduledSlot[]>>((acc, slot) => {
+          const dateKey = new Date(slot.start).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+          (acc[dateKey] ??= []).push(slot);
+          return acc;
+        }, {});
+
+        const totalMinutes = previewSlots.reduce((sum, s) => sum + slotDuration(s.start, s.end), 0);
+
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100">
-                  <HugeiconsIcon icon={CalendarAdd01Icon} className="h-5 w-5 text-violet-600" />
+            <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl max-h-[85vh] flex flex-col">
+              {/* Header */}
+              <div className="p-6 pb-0">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100">
+                    <HugeiconsIcon icon={CalendarAdd01Icon} className="h-5 w-5 text-violet-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">
+                      {hasPreview ? "Review Your Schedule" : "Smart Schedule"}
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      {hasPreview
+                        ? "Review the proposed time slots before adding to your calendar"
+                        : "AI will find the best time slots for your subtasks"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-semibold text-slate-900">Schedule to Calendar?</h3>
-                  <p className="text-xs text-slate-400">Add these subtasks as Google Calendar events</p>
-                </div>
+
+                {promptTask && (
+                  <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Task</p>
+                    <p className="mt-0.5 text-sm font-medium text-slate-800">{promptTask.title}</p>
+                    <div className="mt-1 flex items-center gap-3 text-xs text-slate-400">
+                      {promptTask.deadline && (
+                        <span>
+                          Deadline: {new Date(promptTask.deadline).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      )}
+                      <span className={`rounded-full border px-2 py-0.5 font-medium capitalize ${PRIORITY_STYLES[promptTask.priority].badge}`}>
+                        {promptTask.priority}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {promptTask && (
-                <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Task</p>
-                  <p className="mt-0.5 text-sm font-medium text-slate-800">{promptTask.title}</p>
-                  {promptTask.deadline && (
-                    <p className="mt-1 text-xs text-slate-400">
-                      Deadline: {new Date(promptTask.deadline).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+              {/* Scrollable body */}
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                {/* Error inside preview */}
+                {previewError && (
+                  <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">{previewError}</div>
+                )}
+
+                {/* Loading state */}
+                {loadingPreview && (
+                  <div className="flex flex-col items-center justify-center gap-3 py-12">
+                    <HugeiconsIcon icon={Loading03Icon} className="h-8 w-8 animate-spin text-violet-500" />
+                    <p className="text-sm font-medium text-slate-500">Finding optimal time slots...</p>
+                    <p className="text-xs text-slate-400">Analyzing your calendar for availability</p>
+                  </div>
+                )}
+
+                {/* Step 1: Subtask list (before preview) */}
+                {!hasPreview && !loadingPreview && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {promptSubs.length} subtask{promptSubs.length !== 1 ? "s" : ""} to schedule
                     </p>
+                    <ul className="space-y-1">
+                      {promptSubs.map((sub, i) => (
+                        <li key={sub.id} className="flex items-center gap-2 rounded-lg bg-white border border-slate-100 px-3 py-2">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-600">
+                            {i + 1}
+                          </span>
+                          <span className="flex-1 text-sm text-slate-700">{sub.title}</span>
+                          {sub.estimated_minutes && (
+                            <span className="text-xs text-slate-400">{sub.estimated_minutes}m</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="pt-1 text-xs text-slate-400">
+                      Click &quot;Preview Schedule&quot; to see where each subtask will be placed.
+                    </p>
+                  </div>
+                )}
+
+                {/* Step 2: Preview slots grouped by day */}
+                {hasPreview && !loadingPreview && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Proposed Schedule
+                      </p>
+                      <span className="text-xs text-slate-400">
+                        {previewSlots.length} event{previewSlots.length !== 1 ? "s" : ""} · {totalMinutes}m total
+                      </span>
+                    </div>
+
+                    {constraintLevel >= 1 && (
+                      <div className={`rounded-xl border px-3 py-2 text-xs ${
+                        constraintLevel >= 4
+                          ? "border-red-200 bg-red-50 text-red-600"
+                          : constraintLevel >= 2
+                            ? "border-amber-200 bg-amber-50 text-amber-600"
+                            : "border-blue-200 bg-blue-50 text-blue-600"
+                      }`}>
+                        {constraintLevel === 1 && "Lunch hour was used to fit your schedule."}
+                        {constraintLevel === 2 && "Extended hours (7 AM – 10 PM) were needed to fit everything in."}
+                        {constraintLevel === 3 && "Crunch mode activated — extended hours with full weekend scheduling."}
+                        {constraintLevel === 4 && "Sessions were compressed to fit the tight deadline. Consider starting earlier next time."}
+                        {constraintLevel >= 5 && "Survival mode — sessions heavily compressed and hours maximally stretched. This is a very tight schedule."}
+                      </div>
+                    )}
+
+                    {Object.entries(slotsByDate).map(([dateLabel, daySlots]) => (
+                      <div key={dateLabel}>
+                        <p className="mb-1.5 text-xs font-semibold text-slate-600">{dateLabel}</p>
+                        <ul className="space-y-1.5">
+                          {daySlots.map((slot) => (
+                            <li
+                              key={slot.subtask_id + slot.start}
+                              className="rounded-xl border border-violet-100 bg-violet-50/50 px-3 py-2.5"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-200/70">
+                                  <HugeiconsIcon icon={Clock01Icon} className="h-3 w-3 text-violet-600" />
+                                </div>
+                                <span className="flex-1 text-sm font-medium text-slate-800">{slot.title}</span>
+                                <span className="text-xs font-medium text-violet-600">
+                                  {slotDuration(slot.start, slot.end)}m
+                                </span>
+                              </div>
+                              <div className="mt-1 ml-8 flex items-center gap-2 text-xs text-slate-500">
+                                <span>{formatSlotDate(slot.start)}</span>
+                                <span className="text-slate-300">·</span>
+                                <span>{formatSlotTime(slot.start)} – {formatSlotTime(slot.end)}</span>
+                              </div>
+                              {slot.reasoning && (
+                                <p className="mt-1.5 ml-8 text-[11px] leading-relaxed text-slate-400 italic">
+                                  {slot.reasoning}
+                                </p>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-slate-100 px-6 py-4 flex items-center justify-between gap-3">
+                {hasPreview && !loadingPreview && (
+                  <button
+                    type="button"
+                    onClick={() => { setPreviewSlots([]); setPreviewError(""); setConstraintLevel(0); }}
+                    disabled={schedulingToCalendar}
+                    className="text-xs font-medium text-slate-400 transition hover:text-slate-600 hover:cursor-pointer disabled:opacity-60"
+                  >
+                    ← Back to subtasks
+                  </button>
+                )}
+                {!hasPreview && <div />}
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setSchedulePromptTaskId(null); setPreviewSlots([]); setPreviewError(""); setConstraintLevel(0); }}
+                    disabled={schedulingToCalendar}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:cursor-pointer disabled:opacity-60"
+                  >
+                    <HugeiconsIcon icon={Cancel01Icon} className="h-3.5 w-3.5" />
+                    {hasPreview ? "Cancel" : "Skip"}
+                  </button>
+
+                  {!hasPreview ? (
+                    <button
+                      type="button"
+                      onClick={() => fetchSchedulePreview(schedulePromptTaskId)}
+                      disabled={loadingPreview}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-linear-to-b from-violet-500 via-violet-600 to-violet-700 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 ring-1 ring-inset ring-white/20 transition hover:from-violet-400 hover:via-violet-500 hover:to-violet-600 hover:cursor-pointer disabled:opacity-60"
+                    >
+                      <HugeiconsIcon
+                        icon={loadingPreview ? Loading03Icon : SparklesIcon}
+                        className={`h-4 w-4 ${loadingPreview ? "animate-spin" : ""}`}
+                      />
+                      {loadingPreview ? "Analyzing..." : "Preview Schedule"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => commitPreviewedSlots(schedulePromptTaskId)}
+                      disabled={schedulingToCalendar}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-linear-to-b from-emerald-500 via-emerald-600 to-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 ring-1 ring-inset ring-white/20 transition hover:from-emerald-400 hover:via-emerald-500 hover:to-emerald-600 hover:cursor-pointer disabled:opacity-60"
+                    >
+                      <HugeiconsIcon
+                        icon={schedulingToCalendar ? Loading03Icon : CalendarAdd01Icon}
+                        className={`h-4 w-4 ${schedulingToCalendar ? "animate-spin" : ""}`}
+                      />
+                      {schedulingToCalendar ? "Adding to Calendar..." : "Confirm & Add to Calendar"}
+                    </button>
                   )}
                 </div>
-              )}
-
-              <div className="mt-3 space-y-1.5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {promptSubs.length} subtask{promptSubs.length !== 1 ? "s" : ""} to schedule
-                </p>
-                <ul className="max-h-48 space-y-1 overflow-y-auto">
-                  {promptSubs.map((sub, i) => (
-                    <li key={sub.id} className="flex items-center gap-2 rounded-lg bg-white border border-slate-100 px-3 py-2">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-600">
-                        {i + 1}
-                      </span>
-                      <span className="flex-1 text-sm text-slate-700">{sub.title}</span>
-                      {sub.estimated_minutes && (
-                        <span className="text-xs text-slate-400">{sub.estimated_minutes}m</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <p className="mt-3 text-xs text-slate-400">
-                Events will be spaced out between now and the deadline.
-              </p>
-
-              <div className="mt-4 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSchedulePromptTaskId(null)}
-                  disabled={schedulingToCalendar}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:cursor-pointer disabled:opacity-60"
-                >
-                  <HugeiconsIcon icon={Cancel01Icon} className="h-3.5 w-3.5" />
-                  Skip
-                </button>
-                <button
-                  type="button"
-                  onClick={() => scheduleSubtasksToCalendar(schedulePromptTaskId)}
-                  disabled={schedulingToCalendar}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-linear-to-b from-violet-500 via-violet-600 to-violet-700 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 ring-1 ring-inset ring-white/20 transition hover:from-violet-400 hover:via-violet-500 hover:to-violet-600 hover:cursor-pointer disabled:opacity-60"
-                >
-                  <HugeiconsIcon
-                    icon={schedulingToCalendar ? Loading03Icon : CalendarAdd01Icon}
-                    className={`h-4 w-4 ${schedulingToCalendar ? "animate-spin" : ""}`}
-                  />
-                  {schedulingToCalendar ? "Scheduling..." : "Add to Calendar"}
-                </button>
               </div>
             </div>
           </div>
