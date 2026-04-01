@@ -129,7 +129,6 @@ function CalBlock({
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ConflictResolution() {
   const [phase,      setPhase]      = useState<Phase>("idle");
