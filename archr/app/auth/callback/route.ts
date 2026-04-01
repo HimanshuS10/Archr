@@ -4,14 +4,19 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
+  const authError = url.searchParams.get("error");
   const next = url.searchParams.get("next") ?? "/dashboard";
   const safeNext = next.startsWith("/") ? next : "/dashboard";
+
+  if (authError) {
+    return NextResponse.redirect(`${url.origin}/login`);
+  }
 
   if (code) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
-    if (error) {
+    if (error || !data.session) {
       return NextResponse.redirect(`${url.origin}/login`);
     }
 
@@ -19,7 +24,7 @@ export async function GET(request: Request) {
     const userId = data.user?.id;
 
     if (refreshToken && userId) {
-      await supabase.from("google_tokens").upsert(
+      const { error: upsertError } = await supabase.from("google_tokens").upsert(
         {
           user_id: userId,
           refresh_token: refreshToken,
@@ -27,6 +32,10 @@ export async function GET(request: Request) {
         },
         { onConflict: "user_id" },
       );
+
+      if (upsertError) {
+        return NextResponse.redirect(`${url.origin}/login`);
+      }
     }
   }
 

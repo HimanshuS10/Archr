@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 // In-memory rate limiter: IP -> { count, resetAt }
 const rateMap = new Map<string, { count: number; resetAt: number }>();
@@ -50,10 +51,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { error } = await supabase.from("waitlist").insert({ email: email.toLowerCase().trim() });
+  const normalizedEmail = email.toLowerCase().trim();
+  const { error } = await supabase.from("waitlist").insert({ email: normalizedEmail });
 
   if (error) {
     if (error.code === "23505") {
+      await captureServerEvent({
+        distinctId: normalizedEmail,
+        event: "waitlist_duplicate_submission",
+        properties: { source: "api_waitlist" },
+      });
       return NextResponse.json(
         { error: "This email is already on the waitlist!" },
         { status: 409 },
@@ -61,6 +68,12 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await captureServerEvent({
+    distinctId: normalizedEmail,
+    event: "waitlist_signup_success",
+    properties: { source: "api_waitlist" },
+  });
 
   return NextResponse.json(
     { message: "Email added to waitlist" },

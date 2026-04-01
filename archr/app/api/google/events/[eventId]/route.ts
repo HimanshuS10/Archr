@@ -26,6 +26,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       end?: string;
       description?: string;
       timeZone?: string;
+      colorId?: string;
       repeat?: RepeatOption;
       repeatUntil?: string;
       repeatCustom?: {
@@ -90,6 +91,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
             dateTime: new Date(body.end || body.start).toISOString(),
             timeZone: eventTimeZone,
           },
+          colorId: body.colorId || undefined,
           ...(recurrence !== undefined ? { recurrence } : {}),
         }),
       },
@@ -108,7 +110,11 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to update event.";
-    const status = message.includes("not connected") ? 401 : 500;
+    const requiresReconnect =
+      message.includes("not connected") ||
+      message.includes("reconnect") ||
+      message.includes("expired");
+    const status = requiresReconnect ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }
@@ -148,7 +154,11 @@ export async function DELETE(_: Request, { params }: RouteContext) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to delete event.";
-    const status = message.includes("not connected") ? 401 : 500;
+    const requiresReconnect =
+      message.includes("not connected") ||
+      message.includes("reconnect") ||
+      message.includes("expired");
+    const status = requiresReconnect ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

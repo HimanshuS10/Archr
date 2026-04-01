@@ -22,6 +22,10 @@ type CalendarEvent = {
   title: string;
   start: string;
   end?: string;
+  colorId?: string;
+  backgroundColor?: string;
+  borderColor?: string;
+  textColor?: string;
 };
 
 export type CalendarHandle = {
@@ -44,6 +48,33 @@ type RepeatValue =
   | "custom";
 type CustomFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
 
+const EVENT_COLOR_OPTIONS = [
+  { id: "1", label: "Lavender", hex: "#7986cb" },
+  { id: "2", label: "Sage", hex: "#33b679" },
+  { id: "3", label: "Grape", hex: "#8e24aa" },
+  { id: "4", label: "Flamingo", hex: "#e67c73" },
+  { id: "5", label: "Banana", hex: "#f6c026" },
+  { id: "6", label: "Tangerine", hex: "#f5511d" },
+  { id: "7", label: "Peacock", hex: "#039be5" },
+  { id: "8", label: "Graphite", hex: "#616161" },
+  { id: "9", label: "Blueberry", hex: "#3f51b5" },
+  { id: "10", label: "Basil", hex: "#0b8043" },
+  { id: "11", label: "Tomato", hex: "#d60000" },
+] as const;
+
+const EVENT_COLOR_BY_ID = Object.fromEntries(
+  EVENT_COLOR_OPTIONS.map((item) => [item.id, item]),
+);
+
+const withOpacity = (hex: string, opacity: number) => {
+  const clean = hex.replace("#", "");
+  const value = Number.parseInt(clean, 16);
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
 const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
   function CalendarView({ onTitleChange }, ref) {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -57,6 +88,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
     const [formStart, setFormStart] = useState("");
     const [formEnd, setFormEnd] = useState("");
     const [saving, setSaving] = useState(false);
+    const [formColorId, setFormColorId] = useState<string>("");
     const [formRepeat, setFormRepeat] = useState<RepeatValue>("none");
     const [formRepeatUntil, setFormRepeatUntil] = useState("");
 
@@ -93,6 +125,8 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
           scopes: "https://www.googleapis.com/auth/calendar",
           queryParams: {
             access_type: "offline",
+            prompt: "consent",
+            include_granted_scopes: "true",
           },
         },
       });
@@ -103,6 +137,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
       setFormTitle("");
       setFormStart(info.startStr);
       setFormEnd(info.endStr ?? info.startStr);
+      setFormColorId("");
       setIsModalOpen(true);
     }, []);
 
@@ -112,6 +147,9 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
       setFormTitle(event.title ?? "");
       setFormStart(event.start?.toISOString() ?? "");
       setFormEnd(event.end?.toISOString() ?? event.start?.toISOString() ?? "");
+      setFormColorId(
+        String((event.extendedProps?.colorId as string | undefined) ?? ""),
+      );
       setIsModalOpen(true);
     }, []);
 
@@ -121,6 +159,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
       setFormTitle("");
       setFormStart("");
       setFormEnd("");
+      setFormColorId("");
     }, []);
 
     const loadEvents = useCallback(async () => {
@@ -130,7 +169,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
 
       try {
         const response = await fetch(
-          "/api/google/events?maxResults=200&windowDays=120&pastDays=120",
+          "/api/google/events?maxResults=10000&windowDays=0&pastDays=365",
         );
 
         if (!response.ok) {
@@ -144,12 +183,38 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
         }
 
         const payload = await response.json();
-        const mapped: CalendarEvent[] = (payload.items || []).map(
-          (item: any) => ({
+        const mapped: CalendarEvent[] = (payload.items || [])
+          .filter(
+            (item: {
+              status?: string;
+              start?: { dateTime?: string; date?: string };
+            }) =>
+              item?.status !== "cancelled" &&
+              Boolean(item?.start?.dateTime || item?.start?.date),
+          )
+          .map(
+          (item: {
+            id: string;
+            summary?: string;
+            colorId?: string;
+            start?: { dateTime?: string; date?: string };
+            end?: { dateTime?: string; date?: string };
+          }) => ({
+            ...(EVENT_COLOR_BY_ID[String(item.colorId)]
+              ? {
+                  backgroundColor: withOpacity(
+                    EVENT_COLOR_BY_ID[String(item.colorId)].hex,
+                    0.2,
+                  ),
+                  borderColor: EVENT_COLOR_BY_ID[String(item.colorId)].hex,
+                  textColor: "#0f172a",
+                }
+              : {}),
             id: item.id,
             title: item.summary || "Untitled event",
             start: item.start?.dateTime || item.start?.date,
             end: item.end?.dateTime || item.end?.date,
+            colorId: item.colorId ? String(item.colorId) : undefined,
           }),
         );
 
@@ -174,6 +239,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
         start: formStart,
         end: formEnd || formStart,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        colorId: formColorId || undefined,
         repeat: formRepeat,
         repeatUntil:
           formRepeat !== "none" && formRepeat !== "custom"
@@ -231,6 +297,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
       formTitle,
       formRepeat,
       formRepeatUntil,
+      formColorId,
       customFrequency,
       customInterval,
       customByDay,
@@ -412,6 +479,24 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
                     <option value="monthly">Monthly</option>
                     <option value="yearly">Yearly</option>
                     <option value="custom">Custom</option>
+                  </select>
+                </div>
+
+                <div className="grid gap-1">
+                  <label className="text-xs uppercase tracking-[0.3em] text-white/50">
+                    Color
+                  </label>
+                  <select
+                    value={formColorId}
+                    onChange={(e) => setFormColorId(e.target.value)}
+                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                  >
+                    <option value="">Default</option>
+                    {EVENT_COLOR_OPTIONS.map((color) => (
+                      <option key={color.id} value={color.id}>
+                        {color.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

@@ -204,6 +204,7 @@
   font-size: 0.75rem;
   font-weight: 500;
   box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2);
+  opacity: 0.88;
 }
 
 .archr-calendar .fc .fc-timegrid-now-indicator-line {
@@ -236,4 +237,4 @@
 
 .archr-calendar .fc .fc-scroller::-webkit-scrollbar-button {
   display: none;
-}
+}
