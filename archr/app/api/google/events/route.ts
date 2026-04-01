@@ -19,47 +19,87 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const maxResults = Math.min(
-      100,
-      Math.max(1, Number(searchParams.get("maxResults") ?? "20")),
+      10000,
+      Math.max(1, Number(searchParams.get("maxResults") ?? "1000")),
     );
-    const windowDays = Math.min(
-      365,
-      Math.max(1, Number(searchParams.get("windowDays") ?? "30")),
+    const windowDaysParam = Number(searchParams.get("windowDays") ?? "365");
+    const windowDays = Number.isFinite(windowDaysParam)
+      ? Math.min(3650, Math.max(0, windowDaysParam))
+      : 365;
+    const pastDays = Math.min(
+      3650,
+      Math.max(0, Number(searchParams.get("pastDays") ?? "0")),
     );
 
     const now = new Date();
-    const timeMin = now.toISOString();
-    const timeMax = new Date(
-      now.getTime() + windowDays * 24 * 60 * 60 * 1000,
+    const timeMin = new Date(
+      now.getTime() - pastDays * 24 * 60 * 60 * 1000,
     ).toISOString();
+    const timeMax =
+      windowDays > 0
+        ? new Date(now.getTime() + windowDays * 24 * 60 * 60 * 1000).toISOString()
+        : null;
 
-    const response = await fetch(
-      "https://www.googleapis.com/calendar/v3/calendars/primary/events" +
-        `?singleEvents=true&orderBy=startTime` +
-        `&maxResults=${maxResults}` +
-        `&timeMin=${encodeURIComponent(timeMin)}` +
-        `&timeMax=${encodeURIComponent(timeMax)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
+    const items: unknown[] = [];
+    let nextPageToken: string | undefined;
+
+    while (items.length < maxResults) {
+      const pageSize = Math.min(2500, maxResults - items.length);
+      const params = new URLSearchParams({
+        singleEvents: "true",
+        orderBy: "startTime",
+        showDeleted: "false",
+        maxResults: String(pageSize),
+        timeMin,
+      });
+
+      if (timeMax) {
+        params.set("timeMax", timeMax);
+      }
+      if (nextPageToken) {
+        params.set("pageToken", nextPageToken);
+      }
+
+      const response = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         },
-      },
-    );
-
-    if (!response.ok) {
-      const text = await response.text();
-      return NextResponse.json(
-        { error: `Google Calendar API error: ${text}` },
-        { status: response.status },
       );
+
+      if (!response.ok) {
+        const text = await response.text();
+        return NextResponse.json(
+          { error: `Google Calendar API error: ${text}` },
+          { status: response.status },
+        );
+      }
+
+      const payload = (await response.json()) as {
+        items?: unknown[];
+        nextPageToken?: string;
+      };
+      if (payload.items?.length) {
+        items.push(...payload.items);
+      }
+
+      if (!payload.nextPageToken) {
+        break;
+      }
+      nextPageToken = payload.nextPageToken;
     }
 
-    const payload = await response.json();
-    return NextResponse.json(payload);
+    return NextResponse.json({ items });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to fetch events.";
-    const status = message.includes("not connected") ? 401 : 500;
+    const requiresReconnect =
+      message.includes("not connected") ||
+      message.includes("reconnect") ||
+      message.includes("expired");
+    const status = requiresReconnect ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }
@@ -81,6 +121,7 @@ export async function POST(request: Request) {
       end?: string;
       description?: string;
       timeZone?: string;
+      colorId?: string;
       repeat?: RepeatOption;
       repeatUntil?: string;
       repeatCustom?: {
@@ -141,6 +182,7 @@ export async function POST(request: Request) {
             dateTime: new Date(body.end || body.start).toISOString(),
             timeZone: eventTimeZone,
           },
+          colorId: body.colorId || undefined,
           ...(recurrence ? { recurrence } : {}),
         }),
       },
@@ -159,7 +201,11 @@ export async function POST(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to save event.";
-    const status = message.includes("not connected") ? 401 : 500;
+    const requiresReconnect =
+      message.includes("not connected") ||
+      message.includes("reconnect") ||
+      message.includes("expired");
+    const status = requiresReconnect ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

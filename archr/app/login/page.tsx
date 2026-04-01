@@ -34,7 +34,11 @@ export default function LoginPage() {
       options: {
         redirectTo,
         scopes: "https://www.googleapis.com/auth/calendar",
-        queryParams: { access_type: "offline" },
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+          include_granted_scopes: "true",
+        },
       },
     });
 

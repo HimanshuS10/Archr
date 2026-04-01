@@ -26,6 +26,7 @@ type GoogleEvent = {
   title: string;
   start: string;
   end: string;
+  colorId?: string;
   description?: string;
   recurrence?: Recurrence;
   travelMins?: number;
@@ -34,8 +35,27 @@ type GoogleEvent = {
   customRecurrence?: string;
 };
 
-const DEFAULT_MAX_RESULTS = 50;
-const DEFAULT_WINDOW_DAYS = 60;
+const DEFAULT_MAX_RESULTS = 1000;
+const DEFAULT_WINDOW_DAYS = 365;
+const DEFAULT_PAST_DAYS = 365;
+
+const EVENT_COLOR_OPTIONS = [
+  { id: "1", label: "Lavender", hex: "#7986cb" },
+  { id: "2", label: "Sage", hex: "#33b679" },
+  { id: "3", label: "Grape", hex: "#8e24aa" },
+  { id: "4", label: "Flamingo", hex: "#e67c73" },
+  { id: "5", label: "Banana", hex: "#f6c026" },
+  { id: "6", label: "Tangerine", hex: "#f5511d" },
+  { id: "7", label: "Peacock", hex: "#039be5" },
+  { id: "8", label: "Graphite", hex: "#616161" },
+  { id: "9", label: "Blueberry", hex: "#3f51b5" },
+  { id: "10", label: "Basil", hex: "#0b8043" },
+  { id: "11", label: "Tomato", hex: "#d60000" },
+] as const;
+
+const EVENT_COLOR_BY_ID = Object.fromEntries(
+  EVENT_COLOR_OPTIONS.map((item) => [item.id, item.hex]),
+);
 
 function toDatetimeLocal(value?: string) {
   if (!value) return "";
@@ -101,6 +121,7 @@ const Events = ({ isExpanded }: EventsProp) => {
   const [formStart, setFormStart] = useState("");
   const [formEnd, setFormEnd] = useState("");
   const [formDescription, setFormDescription] = useState("");
+  const [formColorId, setFormColorId] = useState("");
   // AI metadata fields
   const [formRecurrence, setFormRecurrence] = useState<Recurrence>("none");
   const [formCustomRecurrence, setFormCustomRecurrence] = useState("");
@@ -121,7 +142,11 @@ const Events = ({ isExpanded }: EventsProp) => {
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
         scopes: "https://www.googleapis.com/auth/calendar",
-        queryParams: { access_type: "offline" },
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+          include_granted_scopes: "true",
+        },
       },
     });
   }, []);
@@ -131,6 +156,7 @@ const Events = ({ isExpanded }: EventsProp) => {
     setFormStart("");
     setFormEnd("");
     setFormDescription("");
+    setFormColorId("");
     setFormRecurrence("none");
     setFormCustomRecurrence("");
     setFormTravelMins("");
@@ -162,7 +188,7 @@ const Events = ({ isExpanded }: EventsProp) => {
 
     try {
       const response = await fetch(
-        `/api/google/events?maxResults=${DEFAULT_MAX_RESULTS}&windowDays=${DEFAULT_WINDOW_DAYS}`,
+        `/api/google/events?maxResults=${DEFAULT_MAX_RESULTS}&windowDays=${DEFAULT_WINDOW_DAYS}&pastDays=${DEFAULT_PAST_DAYS}`,
       );
 
       if (!response.ok) {
@@ -181,6 +207,7 @@ const Events = ({ isExpanded }: EventsProp) => {
             id: string;
             summary?: string;
             description?: string;
+            colorId?: string;
             start: { dateTime?: string; date?: string };
             end: { dateTime?: string; date?: string };
           }) => ({
@@ -188,6 +215,7 @@ const Events = ({ isExpanded }: EventsProp) => {
             title: item.summary || "Untitled event",
             start: item.start.dateTime || item.start.date || "",
             end: item.end?.dateTime || item.end?.date || item.start.dateTime || item.start.date || "",
+            colorId: item.colorId ? String(item.colorId) : undefined,
             description: item.description || "",
           })
         );
@@ -226,6 +254,7 @@ const Events = ({ isExpanded }: EventsProp) => {
     setFormTitle(event.title);
     setFormStart(toDatetimeLocal(event.start));
     setFormEnd(toDatetimeLocal(event.end));
+    setFormColorId(event.colorId ?? "");
     const { userDesc, meta } = parseMetaFromDescription(event.description ?? "");
     setFormDescription(userDesc);
     setFormRecurrence((meta.recurrence as Recurrence) ?? "none");
@@ -264,6 +293,7 @@ const Events = ({ isExpanded }: EventsProp) => {
         start: formStart,
         end: formEnd || formStart,
         description: fullDescription || undefined,
+        colorId: formColorId || undefined,
       };
 
       const supabasePayload = {
@@ -321,6 +351,7 @@ const Events = ({ isExpanded }: EventsProp) => {
         start: saved.start?.dateTime || saved.start?.date,
         end: saved.end?.dateTime || saved.end?.date,
         description: saved.description || "",
+        colorId: saved.colorId ? String(saved.colorId) : undefined,
       };
 
       setEvents((prev) =>
@@ -409,19 +440,18 @@ const Events = ({ isExpanded }: EventsProp) => {
         </button>
 
         {/* Jump to today */}
-        {!isSameDay(selectedDate, new Date()) && (
-          <button
-            type="button"
-            onClick={() => {
-              const t = new Date();
-              t.setHours(0, 0, 0, 0);
-              setSelectedDate(t);
-            }}
-            className="ml-1 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:cursor-pointer"
-          >
-            Today
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => {
+            const t = new Date();
+            t.setHours(0, 0, 0, 0);
+            setSelectedDate(t);
+          }}
+          disabled={isSameDay(selectedDate, new Date())}
+          className="ml-1 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Today
+        </button>
       </div>
 
       {/* ── Event list ── */}
@@ -471,7 +501,14 @@ const Events = ({ isExpanded }: EventsProp) => {
                     </div>
 
                     {/* Blue accent line */}
-                    <div className="mt-1 w-0.5 self-stretch rounded-full bg-blue-200 shrink-0" />
+                    <div
+                      className="mt-1 w-0.5 self-stretch rounded-full shrink-0"
+                      style={{
+                        backgroundColor:
+                          EVENT_COLOR_BY_ID[event.colorId ?? ""] ?? "#bfdbfe",
+                        opacity: 0.5,
+                      }}
+                    />
 
                     {/* Content */}
                     <div className="min-w-0 flex-1">
@@ -570,6 +607,24 @@ const Events = ({ isExpanded }: EventsProp) => {
                   placeholder="Add details..."
                   className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
                 />
+              </div>
+
+              <div className="grid gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Event color
+                </label>
+                <select
+                  value={formColorId}
+                  onChange={(e) => setFormColorId(e.target.value)}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">Default</option>
+                  {EVENT_COLOR_OPTIONS.map((color) => (
+                    <option key={color.id} value={color.id}>
+                      {color.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Divider */}
