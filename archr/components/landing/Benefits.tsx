@@ -3,8 +3,6 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 
-// ─── Google Calendar Icon ─────────────────────────────────────────────────────
-
 const GoogleCalendarIcon: React.FC<{ className?: string }> = ({ className = "" }) => (
   <svg viewBox="0 0 40 40" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="4" y="6" width="32" height="30" rx="5" fill="white" stroke="#E5E7EB" strokeWidth="1" />
@@ -22,7 +20,6 @@ const GoogleCalendarIcon: React.FC<{ className?: string }> = ({ className = "" }
   </svg>
 );
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
 
 const EVENT_PILLS = [
   { label: "Team standup · 10am",  bg: "#E6F1FB", text: "#0C447C" },
@@ -39,7 +36,6 @@ const STATUS_MSGS = [
 
 const COMING_SOON = ["Outlook", "Apple Calendar", "Notion", "Linear"];
 
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function IntegrationsArc() {
   const [statusIdx, setStatusIdx] = useState(0);
@@ -54,14 +50,12 @@ export default function IntegrationsArc() {
   }, []);
 
   return (
-    <section id="integrations" className="w-full bg-white flex flex-col items-center py-16 px-4 md:px-8 overflow-hidden">
+    <section id="integrations " className="w-full bg-white flex flex-col items-center py-16 px-4 md:px-8 overflow-hidden">
 
-      {/* Label pill */}
       <div className="w-fit px-4 py-1.5 bg-white border border-gray-200 rounded-full shadow-sm mb-8">
         <span className="text-gray-600 text-sm font-medium tracking-tight">Integrations</span>
       </div>
 
-      {/* Heading */}
       <h2 className="text-3xl md:text-5xl font-semibold text-center text-black mb-4 leading-tight tracking-tight">
         Plugs straight into
         <br className="hidden md:block" /> Google Calendar
@@ -70,11 +64,8 @@ export default function IntegrationsArc() {
         One click to connect. Archr reads your existing events and plans around them automatically.
       </p>
 
-      {/* ── Integration card ── */}
       <div className="w-full max-w-lg">
         <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-sm">
-
-          {/* Connection diagram */}
           <div className="flex items-center justify-between gap-4 mb-8">
 
             <div className="flex flex-col items-center gap-2 flex-shrink-0">
@@ -148,7 +139,6 @@ export default function IntegrationsArc() {
             </div>
           </div>
 
-          {/* Synced events list */}
           <div className="bg-gray-50 rounded-2xl p-4 mb-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
@@ -185,7 +175,6 @@ export default function IntegrationsArc() {
             </div>
           </div>
 
-          {/* Status bar */}
           <div className="flex items-center gap-2">
             <div
               className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"
@@ -197,7 +186,6 @@ export default function IntegrationsArc() {
           </div>
         </div>
 
-        {/* Coming soon */}
         <div className="mt-8 flex flex-col items-center gap-3">
           <span className="text-[10px] text-gray-300 font-semibold uppercase tracking-widest">
             More integrations coming soon
