@@ -1,13 +1,19 @@
+"use client";
+
 import CalendarView, {
   CalendarHandle,
 } from "@/components/dashboard/CalendarView";
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
+import { useCalendarOptimizer } from "@/hooks/useCalendarOptimizer";
+import ConflictPanel from "@/components/dashboard/ConflictPanel";
+import type { InitialCalendarEvent } from "@/lib/calendar-events-server";
 
 type DashboardProps = {
   isExpanded: boolean;
+  initialEvents?: InitialCalendarEvent[];
 };
 
-function Dashboard({ isExpanded }: DashboardProps) {
+function Dashboard({ isExpanded, initialEvents }: DashboardProps) {
   const calendarRef = useRef<CalendarHandle | null>(null);
   const [title, setTitle] = useState("");
   const [activeView, setActiveView] = useState<
@@ -21,63 +27,83 @@ function Dashboard({ isExpanded }: DashboardProps) {
     calendarRef.current?.changeView(view);
   };
 
+  const onResolved = useCallback(() => {
+    calendarRef.current?.refetchEvents();
+  }, []);
+
+  const { state, optimize, reset, checkConflicts } = useCalendarOptimizer({
+    autoCheck: true,
+    checkInterval: 300_000, // re-check every 5 minutes
+    windowDays: 7,
+    onResolved,
+  });
+
   return (
-    <main
-      className="h-screen overflow-hidden px-8 pt-2 pb-3 transition-[margin] duration-300"
-      style={{ marginLeft: isExpanded ? 260 : 70 }}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => calendarRef.current?.prev()}
-            className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-900"
-          >
-            &lt;
-          </button>
-          <button
-            type="button"
-            onClick={() => calendarRef.current?.next()}
-            className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-900"
-          >
-            &gt;
-          </button>
-          <p className="px-1 text-sm font-semibold text-gray-800">{title}</p>
-          <button
-            type="button"
-            onClick={() => calendarRef.current?.today()}
-            className="rounded-full border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-900"
-          >
-            Today
-          </button>
-        </div>
-        <div className="flex items-center gap-1 rounded-full border border-gray-200 bg-white p-1 text-sm shadow-sm">
-          {(
-            [
-              { label: "Month", view: "dayGridMonth" },
-              { label: "Week", view: "timeGridWeek" },
-              { label: "Day", view: "timeGridDay" },
-            ] as const
-          ).map((item) => (
+    <>
+      <main
+        className="h-screen overflow-hidden px-8 pt-2 pb-3 transition-[margin] duration-300"
+        style={{ marginLeft: isExpanded ? 260 : 70 }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1">
             <button
-              key={item.view}
               type="button"
-              onClick={() => handleViewChange(item.view)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-                activeView === item.view
-                  ? "bg-gray-900 text-white shadow-sm"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-              }`}
+              onClick={() => calendarRef.current?.prev()}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
             >
-              {item.label}
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => calendarRef.current?.next()}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+            <p className="px-2 text-sm font-semibold text-gray-800">{title}</p>
+            <button
+              type="button"
+              onClick={() => calendarRef.current?.today()}
+              className="ml-1 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
+            >
+              Today
+            </button>
+          </div>
+          <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm">
+            {(
+              [
+                { label: "Month", view: "dayGridMonth" },
+                { label: "Week", view: "timeGridWeek" },
+                { label: "Day", view: "timeGridDay" },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.view}
+                type="button"
+                onClick={() => handleViewChange(item.view)}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                  activeView === item.view
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-      <div className="mt-2 h-[calc(100vh-5.75rem)]">
-        <CalendarView ref={calendarRef} onTitleChange={setTitle} />
-      </div>
-    </main>
+        <div className="mt-2 h-[calc(100vh-5.75rem)]">
+          <CalendarView
+            ref={calendarRef}
+            onTitleChange={setTitle}
+            initialEvents={initialEvents}
+            onEventSaved={checkConflicts}
+          />
+        </div>
+      </main>
+
+      <ConflictPanel state={state} onApply={() => optimize(true)} onDismiss={reset} />
+    </>
   );
 }
 

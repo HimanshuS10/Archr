@@ -1,41 +1,26 @@
-"use client";
+import { createClient } from "@/lib/supabase/server";
+import { getGoogleAccessTokenForUser } from "@/lib/google-calendar-server";
+import { fetchCalendarEventsForServer } from "@/lib/calendar-events-server";
+import type { InitialCalendarEvent } from "@/lib/calendar-events-server";
+import DashboardShell from "@/components/dashboard/DashboardShell";
 
-import Sidebar from "@/components/dashboard/Sidebar";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import Dashboard from "@/components/dashboard/Dashboard";
-import Events from "@/components/dashboard/Events";
-import Tasks from "@/components/dashboard/Tasks";
+export default async function DashboardPage() {
+  let initialEvents: InitialCalendarEvent[] = [];
 
-const Home = () => {
-  const [collapsed, setCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<"Home" | "Events" | "Tasks">("Home");
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  useEffect(() => {
-    const getSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      console.log(data.session?.provider_token);
-      console.log(data.session?.provider_refresh_token);
-    };
+    if (user) {
+      const accessToken = await getGoogleAccessTokenForUser(supabase, user.id);
+      initialEvents = await fetchCalendarEventsForServer(accessToken);
+    }
+  } catch {
+    // If the token is missing or the fetch fails, the client will load events
+    // on its own — this is a graceful fallback, not an error state.
+  }
 
-    getSession();
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <Sidebar
-        collapsed={collapsed}
-        onToggle={() => setCollapsed((prev) => !prev)}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
-
-      {activeTab === "Home" && <Dashboard isExpanded={!collapsed} />}
-      {activeTab === "Events" && <Events isExpanded={!collapsed} />}
-      {activeTab === "Tasks" && <Tasks isExpanded={!collapsed} />}
-
-    </div>
-  );
+  return <DashboardShell initialEvents={initialEvents} />;
 }
-
-export default Home;

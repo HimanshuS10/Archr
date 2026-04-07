@@ -13,36 +13,31 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { supabase } from "@/lib/supabase";
-import type { DateSelectArg, EventClickArg } from "@fullcalendar/core";
+import type { DateSelectArg, EventClickArg, EventContentArg, EventDropArg } from "@fullcalendar/core";
+import type { EventResizeDoneArg } from "@fullcalendar/interaction";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Delete02Icon,
   SquareLock02Icon,
   SquareUnlock02Icon,
 } from "@hugeicons/core-free-icons";
+import { EVENT_COLOR_OPTIONS, EVENT_COLOR_BY_ID, withOpacity, getPastelColor } from "@/lib/calendar-colors";
+import type { InitialCalendarEvent } from "@/lib/calendar-events-server";
 
-type CalendarEvent = {
-  id: string;
-  title: string;
-  start: string;
-  end?: string;
-  colorId?: string;
-  backgroundColor?: string;
-  borderColor?: string;
-  textColor?: string;
-  classNames?: string[];
-  extendedProps?: { colorId?: string; locked?: boolean };
-};
+type CalendarEvent = InitialCalendarEvent;
 
 export type CalendarHandle = {
   changeView: (view: "dayGridMonth" | "timeGridWeek" | "timeGridDay") => void;
   prev: () => void;
   next: () => void;
   today: () => void;
+  refetchEvents: () => void;
 };
 
 type CalendarViewProps = {
   onTitleChange?: (title: string) => void;
+  initialEvents?: InitialCalendarEvent[];
+  onEventSaved?: () => void;
 };
 
 type RepeatValue =
@@ -54,37 +49,61 @@ type RepeatValue =
   | "custom";
 type CustomFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
 
-const EVENT_COLOR_OPTIONS = [
-  { id: "1", label: "Lavender", hex: "#7986cb" },
-  { id: "2", label: "Sage", hex: "#33b679" },
-  { id: "3", label: "Grape", hex: "#8e24aa" },
-  { id: "4", label: "Flamingo", hex: "#e67c73" },
-  { id: "5", label: "Banana", hex: "#f6c026" },
-  { id: "6", label: "Tangerine", hex: "#f5511d" },
-  { id: "7", label: "Peacock", hex: "#039be5" },
-  { id: "8", label: "Graphite", hex: "#616161" },
-  { id: "9", label: "Blueberry", hex: "#3f51b5" },
-  { id: "10", label: "Basil", hex: "#0b8043" },
-  { id: "11", label: "Tomato", hex: "#d60000" },
-] as const;
+function formatEventTime(date: Date | null): string {
+  if (!date) return "";
+  return date
+    .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
+    .toLowerCase();
+}
 
-const EVENT_COLOR_BY_ID = Object.fromEntries(
-  EVENT_COLOR_OPTIONS.map((item) => [item.id, item]),
-);
+function EventContent({ arg }: { arg: EventContentArg }) {
+  const isLocked = arg.event.extendedProps?.locked as boolean | undefined;
+  const start = arg.event.start;
+  const end = arg.event.end;
+  const timeStr =
+    start && end
+      ? `${formatEventTime(start)} – ${formatEventTime(end)}`
+      : start
+      ? formatEventTime(start)
+      : "";
 
-const withOpacity = (hex: string, opacity: number) => {
-  const clean = hex.replace("#", "");
-  const value = Number.parseInt(clean, 16);
-  const r = (value >> 16) & 255;
-  const g = (value >> 8) & 255;
-  const b = value & 255;
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-};
+  return (
+    <div className="relative flex h-full flex-col overflow-hidden px-2 py-1.5 gap-0.5">
+      {/* Jail-bar overlay for locked events */}
+      {isLocked && (
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.055) 5px, rgba(0,0,0,0.055) 6px)",
+          }}
+        />
+      )}
+
+      <div className="relative flex items-start justify-between gap-1 min-w-0">
+        <span className="truncate text-[11px] font-semibold leading-snug">
+          {arg.event.title}
+        </span>
+        <span className="shrink-0 text-[12px] leading-none opacity-40">···</span>
+      </div>
+      <div className="relative text-[10px] leading-none opacity-60 truncate">{timeStr}</div>
+
+      {isLocked && (
+        <div className="relative mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-white/80 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700">
+          <svg className="h-2.5 w-2.5 shrink-0 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+          </svg>
+          Locked
+        </div>
+      )}
+    </div>
+  );
+}
 
 const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
-  function CalendarView({ onTitleChange }, ref) {
-    const [events, setEvents] = useState<CalendarEvent[]>([]);
-    const [loading, setLoading] = useState(true);
+  function CalendarView({ onTitleChange, initialEvents, onEventSaved }, ref) {
+    const [events, setEvents] = useState<CalendarEvent[]>(initialEvents ?? []);
+    const [loading, setLoading] = useState(!initialEvents || initialEvents.length === 0);
     const [error, setError] = useState<string | null>(null);
     const [needsConnect, setNeedsConnect] = useState(false);
     const calendarRef = useRef<FullCalendar | null>(null);
@@ -172,8 +191,8 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
       setFormLocked(false);
     }, []);
 
-    const loadEvents = useCallback(async () => {
-      setLoading(true);
+    const loadEvents = useCallback(async (silent = false) => {
+      if (!silent) setLoading(true);
       setError(null);
       setNeedsConnect(false);
 
@@ -212,15 +231,20 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
             extendedProperties?: { private?: Record<string, string> };
           }) => {
             const isLocked = item.extendedProperties?.private?.locked === "true";
+            const colorEntry = EVENT_COLOR_BY_ID[String(item.colorId)];
+            const pastel = !colorEntry ? getPastelColor(item.id) : null;
             return {
-              ...(EVENT_COLOR_BY_ID[String(item.colorId)]
+              ...(colorEntry
                 ? {
-                    backgroundColor: withOpacity(
-                      EVENT_COLOR_BY_ID[String(item.colorId)].hex,
-                      0.2,
-                    ),
-                    borderColor: EVENT_COLOR_BY_ID[String(item.colorId)].hex,
-                    textColor: "#0f172a",
+                    backgroundColor: withOpacity(colorEntry.hex, 0.15),
+                    borderColor: withOpacity(colorEntry.hex, 0.4),
+                    textColor: colorEntry.hex,
+                  }
+                : pastel
+                ? {
+                    backgroundColor: pastel.bg,
+                    borderColor: pastel.border,
+                    textColor: pastel.text,
                   }
                 : {}),
               id: item.id,
@@ -301,7 +325,8 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
         }
 
         await response.json();
-        await loadEvents();
+        await loadEvents(true); // silent — no loading flash
+        onEventSaved?.();
 
         closeModal();
       } catch (err) {
@@ -360,9 +385,64 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
       }
     }, [editingId, closeModal]);
 
+    // Shared helper — PATCHes a moved/resized event and reverts on failure
+    const persistEventChange = useCallback(
+      async (
+        event: EventDropArg["event"] | EventResizeDoneArg["event"],
+        revert: () => void,
+      ) => {
+        if (!event.start) { revert(); return; }
+
+        const start = event.start.toISOString();
+        const end   = (event.end ?? event.start).toISOString();
+
+        try {
+          const res = await fetch(`/api/google/events/${event.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title:    event.title,
+              start,
+              end,
+              timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+              locked:   Boolean(event.extendedProps?.locked),
+            }),
+          });
+
+          if (!res.ok) {
+            revert();
+            return;
+          }
+
+          // Keep React state in sync so background refreshes don't flicker
+          setEvents((prev) =>
+            prev.map((e) => (e.id === event.id ? { ...e, start, end } : e)),
+          );
+
+          // Trigger conflict check in case the move created an overlap
+          onEventSaved?.();
+        } catch {
+          revert();
+        }
+      },
+      [onEventSaved],
+    );
+
+    const handleEventDrop = useCallback(
+      (info: EventDropArg) => persistEventChange(info.event, info.revert),
+      [persistEventChange],
+    );
+
+    const handleEventResize = useCallback(
+      (info: EventResizeDoneArg) => persistEventChange(info.event, info.revert),
+      [persistEventChange],
+    );
+
     useEffect(() => {
+      // Skip the initial fetch if the server already provided events
+      if (initialEvents && initialEvents.length > 0) return;
       loadEvents();
-    }, [loadEvents]);
+    }, [loadEvents, initialEvents]);
 
     useImperativeHandle(ref, () => ({
       changeView: (view) => {
@@ -385,35 +465,30 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
         api?.today();
         if (api?.view?.title) onTitleChange?.(api.view.title);
       },
+      refetchEvents: () => {
+        loadEvents();
+      },
     }));
 
     return (
-      <div className="archr-calendar h-full rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
-        {/* <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-white">Your Calendar</h2>
-          <p className="text-sm text-white/60">Synced from Google Calendar</p>
-        </div>
-      </div> */}
-
+      <div className="archr-calendar h-full rounded-2xl border border-gray-100 bg-white p-4">
         {loading ? (
-          <div className="text-sm text-white/60">Loading events...</div>
+          <div className="flex h-full items-center justify-center text-sm text-gray-400">Loading events...</div>
         ) : needsConnect ? (
-          <div className="space-y-3">
-            <p className="text-sm text-white/70">
-              Connect your Google Calendar to sync events. If this is your first
-              time after the token migration, one reconnect may be required.
+          <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+            <p className="max-w-xs text-sm text-gray-500">
+              Connect your Google Calendar to sync events.
             </p>
             <button
               type="button"
               onClick={handleConnect}
-              className="rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-300 hover:via-blue-400 hover:to-blue-500"
+              className="rounded-lg bg-gray-900 px-5 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
             >
               Connect Google Calendar
             </button>
           </div>
         ) : error ? (
-          <div className="text-sm text-red-300">{error}</div>
+          <div className="text-sm text-red-500">{error}</div>
         ) : (
           <div className="h-full">
             <FullCalendar
@@ -431,6 +506,14 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
               eventAllow={(_, draggedEvent) => {
                 return !draggedEvent?.extendedProps?.locked;
               }}
+              eventDrop={handleEventDrop}
+              eventResize={handleEventResize}
+              slotDuration="01:00:00"
+              slotLabelInterval="01:00:00"
+              scrollTime="00:00:00"
+              expandRows
+              nowIndicator
+              eventContent={(arg) => <EventContent arg={arg} />}
               select={openCreate}
               eventClick={openEdit}
               height="100%"
@@ -439,130 +522,136 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
         )}
 
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0b0d16] p-6 text-white">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl shadow-gray-200/50">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">
-                  {editingId ? "Edit event" : "Add event"}
+                <h3 className="text-base font-semibold text-gray-900">
+                  {editingId ? "Edit event" : "New event"}
                 </h3>
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormLocked((prev) => !prev)}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition hover:cursor-pointer ${
+                      formLocked
+                        ? "bg-amber-50 text-amber-600 ring-1 ring-amber-200"
+                        : "bg-gray-50 text-gray-400 ring-1 ring-gray-200 hover:text-gray-600"
+                    }`}
+                    title={formLocked ? "Unlock event" : "Lock event"}
+                  >
+                    <HugeiconsIcon
+                      icon={formLocked ? SquareLock02Icon : SquareUnlock02Icon}
+                      className="h-3.5 w-3.5"
+                    />
+                    {formLocked ? "Locked" : "Lock"}
+                  </button>
                   {editingId && (
-                    <button
-                      type="button"
-                      onClick={() => setFormLocked((prev) => !prev)}
-                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition hover:cursor-pointer ${
-                        formLocked
-                          ? "bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/30"
-                          : "bg-white/5 text-white/40 ring-1 ring-white/10 hover:text-white/70"
-                      }`}
-                      title={formLocked ? "Unlock event" : "Lock event"}
-                    >
+                    <button type="button" onClick={handleDelete} disabled={saving}>
                       <HugeiconsIcon
-                        icon={formLocked ? SquareLock02Icon : SquareUnlock02Icon}
-                        className="h-3.5 w-3.5"
+                        icon={Delete02Icon}
+                        className="h-4 w-4 text-gray-400 hover:text-red-500 transition cursor-pointer"
                       />
-                      {formLocked ? "Locked" : "Lock"}
                     </button>
                   )}
-                  <button type="button" onClick={handleDelete} disabled={saving}>
-                    <HugeiconsIcon
-                      icon={Delete02Icon}
-                      className="text-gray-400 cursor-pointer"
-                    />
-                  </button>
                 </div>
               </div>
 
               {formLocked && (
-                <div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2">
-                  <HugeiconsIcon icon={SquareLock02Icon} className="h-4 w-4 text-amber-400 shrink-0" />
-                  <p className="text-xs text-amber-300/80">
-                    This event is locked. It won&apos;t be moved during rescheduling. Toggle the lock to edit.
+                <div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2">
+                  <HugeiconsIcon icon={SquareLock02Icon} className="h-4 w-4 text-amber-500 shrink-0" />
+                  <p className="text-xs text-amber-700">
+                    {editingId
+                      ? "This event is locked and won\u2019t be moved during rescheduling."
+                      : "This event will be locked and protected from automatic rescheduling."}
                   </p>
                 </div>
               )}
 
-              <div className="mt-4 grid gap-3">
-                <div className="grid gap-1">
-                  <label className="text-xs uppercase tracking-[0.3em] text-white/50">
+              <div className="mt-5 grid gap-4">
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-medium text-gray-500">
                     Title
                   </label>
                   <input
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
                     disabled={formLocked}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
                     placeholder="Event title"
                   />
                 </div>
-                <div className="grid gap-1">
-                  <label className="text-xs uppercase tracking-[0.3em] text-white/50">
-                    Start
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={formStart ? formStart.slice(0, 16) : ""}
-                    onChange={(e) => setFormStart(e.target.value)}
-                    disabled={formLocked}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-40 disabled:cursor-not-allowed"
-                  />
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-xs uppercase tracking-[0.3em] text-white/50">
-                    End
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={formEnd ? formEnd.slice(0, 16) : ""}
-                    onChange={(e) => setFormEnd(e.target.value)}
-                    disabled={formLocked}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-40 disabled:cursor-not-allowed"
-                  />
-                </div>
-
-                <div className="grid gap-1">
-                  <label className="text-xs uppercase tracking-[0.3em] text-white/50">
-                    Repeat
-                  </label>
-                  <select
-                    value={formRepeat}
-                    onChange={(e) =>
-                      setFormRepeat(e.target.value as RepeatValue)
-                    }
-                    disabled={formLocked}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <option value="none">Does not repeat</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="yearly">Yearly</option>
-                    <option value="custom">Custom</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-medium text-gray-500">
+                      Start
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={formStart ? formStart.slice(0, 16) : ""}
+                      onChange={(e) => setFormStart(e.target.value)}
+                      disabled={formLocked}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-medium text-gray-500">
+                      End
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={formEnd ? formEnd.slice(0, 16) : ""}
+                      onChange={(e) => setFormEnd(e.target.value)}
+                      disabled={formLocked}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    />
+                  </div>
                 </div>
 
-                <div className="grid gap-1">
-                  <label className="text-xs uppercase tracking-[0.3em] text-white/50">
-                    Color
-                  </label>
-                  <select
-                    value={formColorId}
-                    onChange={(e) => setFormColorId(e.target.value)}
-                    disabled={formLocked}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Default</option>
-                    {EVENT_COLOR_OPTIONS.map((color) => (
-                      <option key={color.id} value={color.id}>
-                        {color.label}
-                      </option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-medium text-gray-500">
+                      Repeat
+                    </label>
+                    <select
+                      value={formRepeat}
+                      onChange={(e) =>
+                        setFormRepeat(e.target.value as RepeatValue)
+                      }
+                      disabled={formLocked}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    >
+                      <option value="none">Does not repeat</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="yearly">Yearly</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-medium text-gray-500">
+                      Color
+                    </label>
+                    <select
+                      value={formColorId}
+                      onChange={(e) => setFormColorId(e.target.value)}
+                      disabled={formLocked}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Default</option>
+                      {EVENT_COLOR_OPTIONS.map((color) => (
+                        <option key={color.id} value={color.id}>
+                          {color.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {formRepeat !== "none" ? (
-                  <div className="grid gap-1">
-                    <label className="text-xs uppercase tracking-[0.3em] text-white/50">
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-medium text-gray-500">
                       Repeat until
                     </label>
                     <input
@@ -570,16 +659,16 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
                       value={formRepeatUntil}
                       onChange={(e) => setFormRepeatUntil(e.target.value)}
                       disabled={formLocked}
-                      className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
                     />
                   </div>
                 ) : null}
               </div>
-              <div className="mt-5 flex items-center justify-end gap-3">
+              <div className="mt-6 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:text-white"
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
                 >
                   Cancel
                 </button>
@@ -587,7 +676,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-300 hover:via-blue-400 hover:to-blue-500 disabled:opacity-60"
+                  className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:opacity-50"
                 >
                   {saving ? "Saving..." : "Save"}
                 </button>
