@@ -242,6 +242,23 @@
   opacity: 0.92;
 }
 
+/* Slide animation when events snap to a new time slot after drop/resize */
+.archr-calendar .fc .fc-timegrid-event-harness {
+  transition: top 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+              height 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Disable transition during active drag or resize (feels laggy otherwise) */
+.archr-calendar .fc .fc-timegrid-event-harness:has(.fc-event-dragging),
+.archr-calendar .fc .fc-timegrid-event-harness:has(.fc-event-resizing) {
+  transition: none;
+}
+
+/* Mirror/ghost element should never animate */
+.archr-calendar .fc .fc-event-mirror {
+  transition: none !important;
+}
+
 /* Now indicator — black pill style */
 .archr-calendar .fc .fc-timegrid-now-indicator-line {
   border-color: #1e293b;

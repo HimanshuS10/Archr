@@ -4,6 +4,7 @@ import CalendarView, {
   CalendarHandle,
 } from "@/components/dashboard/CalendarView";
 import { useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useCalendarOptimizer } from "@/hooks/useCalendarOptimizer";
 import ConflictPanel from "@/components/dashboard/ConflictPanel";
 import type { InitialCalendarEvent } from "@/lib/calendar-events-server";
@@ -14,6 +15,7 @@ type DashboardProps = {
 };
 
 function Dashboard({ isExpanded, initialEvents }: DashboardProps) {
+  const router = useRouter();
   const calendarRef = useRef<CalendarHandle | null>(null);
   const [title, setTitle] = useState("");
   const [activeView, setActiveView] = useState<
@@ -28,8 +30,8 @@ function Dashboard({ isExpanded, initialEvents }: DashboardProps) {
   };
 
   const onResolved = useCallback(() => {
-    calendarRef.current?.refetchEvents();
-  }, []);
+    router.refresh();
+  }, [router]);
 
   const { state, optimize, reset, checkConflicts } = useCalendarOptimizer({
     autoCheck: true,
@@ -107,4 +109,5 @@ function Dashboard({ isExpanded, initialEvents }: DashboardProps) {
   );
 }
 
-export default Dashboard;
+  export default Dashboard;
+    

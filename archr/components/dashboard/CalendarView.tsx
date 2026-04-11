@@ -15,6 +15,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { supabase } from "@/lib/supabase";
 import type { DateSelectArg, EventClickArg, EventContentArg, EventDropArg } from "@fullcalendar/core";
 import type { EventResizeDoneArg } from "@fullcalendar/interaction";
+import { motion } from "framer-motion";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Delete02Icon,
@@ -67,8 +68,16 @@ function EventContent({ arg }: { arg: EventContentArg }) {
       ? formatEventTime(start)
       : "";
 
+  const durationMs = start && end ? end.getTime() - start.getTime() : null;
+  const isShort = durationMs !== null && durationMs <= 60 * 60 * 1000;
+
   return (
-    <div className="relative flex h-full flex-col overflow-hidden px-2 py-1.5 gap-0.5">
+    <motion.div
+      className="relative flex h-full flex-col overflow-hidden px-1.5 py-0.5 gap-0"
+      initial={{ opacity: 0, y: 6, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+    >
       {/* Jail-bar overlay for locked events */}
       {isLocked && (
         <div
@@ -80,13 +89,28 @@ function EventContent({ arg }: { arg: EventContentArg }) {
         />
       )}
 
-      <div className="relative flex items-start justify-between gap-1 min-w-0">
-        <span className="truncate text-[11px] font-semibold leading-snug">
-          {arg.event.title}
-        </span>
-        <span className="shrink-0 text-[12px] leading-none opacity-40">···</span>
-      </div>
-      <div className="relative text-[10px] leading-none opacity-60 truncate">{timeStr}</div>
+      {isShort ? (
+        // Single-line compact layout for ≤1h events
+        <div className="relative flex items-baseline gap-1 min-w-0">
+          <span className="text-[11px] font-semibold leading-tight break-words whitespace-normal">
+            {arg.event.title}
+          </span>
+          {timeStr && (
+            <span className="shrink-0 text-[9px] opacity-50 whitespace-nowrap">{timeStr}</span>
+          )}
+        </div>
+      ) : (
+        // Stacked layout for longer events
+        <>
+          <div className="relative flex items-start justify-between gap-1 min-w-0">
+            <span className="text-[11px] font-semibold leading-snug break-words whitespace-normal">
+              {arg.event.title}
+            </span>
+            <span className="shrink-0 text-[12px] leading-none opacity-40">···</span>
+          </div>
+          <div className="relative text-[10px] leading-none opacity-60 break-words whitespace-normal">{timeStr}</div>
+        </>
+      )}
 
       {isLocked && (
         <div className="relative mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-white/80 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700">
@@ -96,7 +120,7 @@ function EventContent({ arg }: { arg: EventContentArg }) {
           Locked
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -439,8 +463,13 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
     );
 
     useEffect(() => {
-      // Skip the initial fetch if the server already provided events
-      if (initialEvents && initialEvents.length > 0) return;
+      if (initialEvents && initialEvents.length > 0) {
+        // Server provided (or refreshed) events — sync into state, no client fetch needed
+        setEvents(initialEvents);
+        setLoading(false);
+        return;
+      }
+      // Fallback: fetch client-side if server didn't provide events (e.g. not authed yet)
       loadEvents();
     }, [loadEvents, initialEvents]);
 
@@ -510,8 +539,7 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
               eventResize={handleEventResize}
               slotDuration="01:00:00"
               slotLabelInterval="01:00:00"
-              scrollTime="00:00:00"
-              expandRows
+              scrollTime="08:00:00"
               nowIndicator
               eventContent={(arg) => <EventContent arg={arg} />}
               select={openCreate}

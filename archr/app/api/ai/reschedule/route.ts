@@ -1,33 +1,47 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getGoogleAccessTokenForUser } from "@/lib/google-calendar-server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// ═══════════════════════════════════════════════════════════════
-//  CONSTANTS
-// ═══════════════════════════════════════════════════════════════
 const MS_PER_MIN = 60_000;
 const MS_PER_HOUR = 60 * MS_PER_MIN;
 const GRID_MS = 15 * MS_PER_MIN;
-const TRANSITION_BUFFER_MS = 10 * MS_PER_MIN;
 
-// ═══════════════════════════════════════════════════════════════
-//  TYPES
-// ═══════════════════════════════════════════════════════════════
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 interface CalendarEvent {
   id: string;
   title: string;
-  start: string;
-  end: string;
+  start: string; // ISO
+  end: string;   // ISO
   locked?: boolean;
   priority?: "low" | "medium" | "high" | "urgent";
-  isDeadline?: boolean;
 }
 
-interface Conflict {
+interface FreeSlot {
+  start: string; // ISO
+  end: string;
+}
+
+interface LLMPayload {
+  timezone: string;
+  workHours: { start: string; end: string };
+  today: string;
+  events: CalendarEvent[];
+  conflicts: { eventA: string; eventB: string }[];
+  freeSlots: FreeSlot[];
+}
+
+interface LLMMove {
   eventId: string;
-  conflictsWith: string;
-  type: "overlap" | "meeting_extended" | "priority_shift" | "new_event";
-  severity: "low" | "medium" | "high";
+  newStart: string;
+  newEnd: string;
+  reason: string;
+}
+
+interface LLMResponse {
+  moves: LLMMove[];
+  summary: string;
 }
 
 interface RescheduleResult {
@@ -41,170 +55,79 @@ interface RescheduleResult {
   status: "moved" | "unchanged" | "protected";
 }
 
-interface TimeInterval {
-  startMs: number;
-  endMs: number;
-  eventId: string;
-  locked: boolean;
-  priority: number;
-  isDeadline: boolean;
-}
+// ─── Utilities ────────────────────────────────────────────────────────────────
 
-// ═══════════════════════════════════════════════════════════════
-//  UTILITIES
-// ═══════════════════════════════════════════════════════════════
-const snapTo15 = (ms: number) => Math.ceil(ms / GRID_MS) * GRID_MS;
-
-function getLocalMinutes(date: Date, tz: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(date);
-  const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
-  const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
-  return h * 60 + m;
-}
-
-function getLocalDateKey(date: Date, tz: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
-
-function priorityToNumber(priority?: string): number {
-  switch (priority) {
-    case "urgent":
-      return 4;
-    case "high":
-      return 3;
-    case "medium":
-      return 2;
-    case "low":
-      return 1;
-    default:
-      return 2;
-  }
-}
-
-function overlaps(
-  s1: number,
-  e1: number,
-  s2: number,
-  e2: number
-): boolean {
+function overlaps(s1: number, e1: number, s2: number, e2: number): boolean {
   return s1 < e2 && e1 > s2;
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  GOOGLE CALENDAR — fetch events
-// ═══════════════════════════════════════════════════════════════
+function snapTo15(ms: number): number {
+  return Math.ceil(ms / GRID_MS) * GRID_MS;
+}
+
+// ─── Google Calendar fetch ────────────────────────────────────────────────────
+
 async function fetchCalendarEvents(
   accessToken: string,
   start: Date,
   end: Date
 ): Promise<CalendarEvent[]> {
-  const events: CalendarEvent[] = [];
-  let pageToken: string | undefined;
+  const params = new URLSearchParams({
+    singleEvents: "true",
+    orderBy: "startTime",
+    timeMin: start.toISOString(),
+    timeMax: end.toISOString(),
+    maxResults: "2500",
+    showDeleted: "false",
+  });
 
-  do {
-    const params = new URLSearchParams({
-      singleEvents: "true",
-      orderBy: "startTime",
-      timeMin: start.toISOString(),
-      timeMax: end.toISOString(),
-      maxResults: "2500",
-      showDeleted: "false",
-    });
-    if (pageToken) params.set("pageToken", pageToken);
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
 
-    const res = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
+  if (!res.ok) return [];
+  const data = await res.json();
 
-    if (!res.ok) break;
-    const data = await res.json();
-
-    for (const e of data.items ?? []) {
-      if (e.status === "cancelled" || e.transparency === "transparent") continue;
-
-      const isLocked = e.extendedProperties?.private?.locked === "true";
-      const priority = e.extendedProperties?.private?.priority;
-      const isDeadline = e.extendedProperties?.private?.isDeadline === "true";
-
-      events.push({
+  return (data.items ?? [])
+    .filter(
+      (e: { status?: string; transparency?: string }) =>
+        e.status !== "cancelled" && e.transparency !== "transparent"
+    )
+    .map(
+      (e: {
+        id: string;
+        summary?: string;
+        start?: { dateTime?: string; date?: string };
+        end?: { dateTime?: string; date?: string };
+        extendedProperties?: { private?: Record<string, string> };
+      }) => ({
         id: e.id,
         title: e.summary || "Untitled",
-        start: e.start?.dateTime || e.start?.date,
-        end: e.end?.dateTime || e.end?.date,
-        locked: isLocked,
-        priority,
-        isDeadline,
-      });
-    }
-
-    pageToken = data.nextPageToken;
-  } while (pageToken);
-
-  return events;
+        start: e.start?.dateTime || e.start?.date || "",
+        end: e.end?.dateTime || e.end?.date || "",
+        locked: e.extendedProperties?.private?.locked === "true",
+        priority: e.extendedProperties?.private?.priority as CalendarEvent["priority"],
+      })
+    )
+    .filter((e: CalendarEvent) => e.start && e.end);
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  CONFLICT DETECTION
-// ═══════════════════════════════════════════════════════════════
-function detectConflicts(
-  events: CalendarEvent[],
-  changedEvent?: { id: string; newEnd?: string; isNew?: boolean }
-): Conflict[] {
-  const conflicts: Conflict[] = [];
-  const intervals: TimeInterval[] = events.map((e) => ({
-    startMs: new Date(e.start).getTime(),
-    endMs: new Date(e.end).getTime(),
-    eventId: e.id,
-    locked: e.locked ?? false,
-    priority: priorityToNumber(e.priority),
-    isDeadline: e.isDeadline ?? false,
-  }));
+// ─── Conflict detection ───────────────────────────────────────────────────────
 
-  // Sort by start time
-  intervals.sort((a, b) => a.startMs - b.startMs);
+function detectConflicts(events: CalendarEvent[]): { eventA: string; eventB: string }[] {
+  const conflicts: { eventA: string; eventB: string }[] = [];
 
-  // Check for overlaps
-  for (let i = 0; i < intervals.length; i++) {
-    for (let j = i + 1; j < intervals.length; j++) {
-      const a = intervals[i];
-      const b = intervals[j];
-
-      if (overlaps(a.startMs, a.endMs, b.startMs, b.endMs)) {
-        // Determine conflict type
-        let type: Conflict["type"] = "overlap";
-        if (changedEvent?.id === a.eventId && changedEvent.newEnd) {
-          type = "meeting_extended";
-        } else if (changedEvent?.isNew && changedEvent.id === a.eventId) {
-          type = "new_event";
-        }
-
-        // Determine severity based on priorities
-        let severity: Conflict["severity"] = "medium";
-        if (a.isDeadline || b.isDeadline) {
-          severity = "high";
-        } else if (a.priority >= 3 || b.priority >= 3) {
-          severity = "high";
-        } else if (a.priority <= 1 && b.priority <= 1) {
-          severity = "low";
-        }
-
-        conflicts.push({
-          eventId: a.eventId,
-          conflictsWith: b.eventId,
-          type,
-          severity,
-        });
+  for (let i = 0; i < events.length; i++) {
+    for (let j = i + 1; j < events.length; j++) {
+      const a = events[i];
+      const b = events[j];
+      const aStart = new Date(a.start).getTime();
+      const aEnd = new Date(a.end).getTime();
+      const bStart = new Date(b.start).getTime();
+      const bEnd = new Date(b.end).getTime();
+      if (overlaps(aStart, aEnd, bStart, bEnd)) {
+        conflicts.push({ eventA: a.id, eventB: b.id });
       }
     }
   }
@@ -212,136 +135,285 @@ function detectConflicts(
   return conflicts;
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  DYNAMIC RESCHEDULING ALGORITHM
-// ═══════════════════════════════════════════════════════════════
-function rescheduleEvents(
+// ─── Free slot computation ────────────────────────────────────────────────────
+
+/**
+ * For each day in the window, compute free time blocks within work hours (8am–8pm)
+ * that are not occupied by any event. Snapped to 15-min grid.
+ */
+function buildFreeSlots(
   events: CalendarEvent[],
-  conflicts: Conflict[],
-  tz: string,
-  windowEndMs: number
-): RescheduleResult[] {
-  const results: RescheduleResult[] = [];
+  windowStartMs: number,
+  windowEndMs: number,
+  tz: string
+): FreeSlot[] {
+  const WORK_START_H = 8;
+  const WORK_END_H = 20;
+  const freeSlots: FreeSlot[] = [];
 
-  // Build intervals with metadata
-  const intervals: (TimeInterval & { event: CalendarEvent })[] = events.map((e) => ({
-    startMs: new Date(e.start).getTime(),
-    endMs: new Date(e.end).getTime(),
-    eventId: e.id,
-    locked: e.locked ?? false,
-    priority: priorityToNumber(e.priority),
-    isDeadline: e.isDeadline ?? false,
-    event: e,
-  }));
+  // Iterate day by day
+  const cursor = new Date(windowStartMs);
+  cursor.setHours(0, 0, 0, 0);
 
-  // Sort by: locked first, then deadlines, then priority (desc), then start time
-  intervals.sort((a, b) => {
-    if (a.locked !== b.locked) return a.locked ? -1 : 1;
-    if (a.isDeadline !== b.isDeadline) return a.isDeadline ? -1 : 1;
-    if (a.priority !== b.priority) return b.priority - a.priority;
-    return a.startMs - b.startMs;
-  });
+  while (cursor.getTime() < windowEndMs) {
+    // Get work day bounds for this date in the local timezone
+    const dateStr = cursor.toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
+    const dayStart = new Date(`${dateStr}T${String(WORK_START_H).padStart(2, "0")}:00:00`);
+    const dayEnd = new Date(`${dateStr}T${String(WORK_END_H).padStart(2, "0")}:00:00`);
 
-  // Track blocked time slots (locked events and deadlines stay fixed)
-  const blockedSlots: { startMs: number; endMs: number }[] = [];
+    // Collect busy intervals for this day (snapped outward to 15-min grid)
+    const busy = events
+      .filter((e) => {
+        const eStart = new Date(e.start).getTime();
+        const eEnd = new Date(e.end).getTime();
+        return overlaps(eStart, eEnd, dayStart.getTime(), dayEnd.getTime());
+      })
+      .map((e) => ({
+        startMs: Math.max(dayStart.getTime(), new Date(e.start).getTime()),
+        endMs: Math.min(dayEnd.getTime(), new Date(e.end).getTime()),
+      }))
+      .sort((a, b) => a.startMs - b.startMs);
 
-  // First pass: Mark all locked and deadline events as protected
-  for (const interval of intervals) {
-    if (interval.locked || interval.isDeadline) {
-      blockedSlots.push({
-        startMs: interval.startMs - TRANSITION_BUFFER_MS,
-        endMs: interval.endMs + TRANSITION_BUFFER_MS,
-      });
-      results.push({
-        eventId: interval.eventId,
-        title: interval.event.title,
-        originalStart: interval.event.start,
-        originalEnd: interval.event.end,
-        newStart: interval.event.start,
-        newEnd: interval.event.end,
-        reason: interval.locked
-          ? "Event is locked — protected from rescheduling"
-          : "Deadline event — protected to ensure completion",
-        status: "protected",
+    // Walk the day and collect free windows
+    let probe = snapTo15(dayStart.getTime());
+    const dayEndMs = dayEnd.getTime();
+
+    for (const b of busy) {
+      if (probe < b.startMs) {
+        freeSlots.push({
+          start: new Date(probe).toISOString(),
+          end: new Date(b.startMs).toISOString(),
+        });
+      }
+      probe = snapTo15(b.endMs);
+    }
+
+    // Tail of the day
+    if (probe < dayEndMs) {
+      freeSlots.push({
+        start: new Date(probe).toISOString(),
+        end: new Date(dayEndMs).toISOString(),
       });
     }
+
+    cursor.setDate(cursor.getDate() + 1);
   }
 
-  // Second pass: Reschedule conflicting events
-  const conflictingEventIds = new Set(conflicts.map((c) => c.eventId));
+  return freeSlots;
+}
 
-  for (const interval of intervals) {
-    // Skip already processed (locked/deadline) events
-    if (interval.locked || interval.isDeadline) continue;
+// ─── LLM call ─────────────────────────────────────────────────────────────────
 
-    const hasConflict = conflictingEventIds.has(interval.eventId);
+async function askLLM(payload: LLMPayload): Promise<LLMResponse | null> {
+  if (!process.env.GEMINI_API_KEY) return null;
 
-    if (!hasConflict) {
-      // Check if the event actually conflicts with blocked slots
-      const conflictsWithBlocked = blockedSlots.some(
-        (slot) => overlaps(interval.startMs, interval.endMs, slot.startMs, slot.endMs)
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+
+  const systemPrompt = `You are a smart calendar scheduling assistant. You receive a JSON object describing calendar events, conflicts, and free time slots. You must decide which events to move to resolve all conflicts.
+
+STRICT RULES:
+- Never move a locked event (locked: true)
+- Never place an event outside work hours (${payload.workHours.start}–${payload.workHours.end})
+- Only place events in times that fall within the provided freeSlots windows
+- The moved event must fit entirely within a single free slot
+- Prefer moving the lower-priority event in each conflict
+- Prefer minimal displacement — move events as little as possible
+- Deep work / focus / coding events work best in the morning
+- Meetings, calls, standups work well mid-day
+- Personal tasks (gym, walk, etc.) are flexible
+
+OUTPUT: Respond with ONLY valid JSON, no markdown, no explanation:
+{
+  "moves": [
+    {
+      "eventId": "<id>",
+      "newStart": "<ISO 8601 datetime>",
+      "newEnd": "<ISO 8601 datetime>",
+      "reason": "<1 sentence why>"
+    }
+  ],
+  "summary": "<one sentence summary of all changes>"
+}
+
+If no moves are needed, return: { "moves": [], "summary": "No conflicts to resolve" }`;
+
+  const userMessage = JSON.stringify(payload, null, 2);
+
+  try {
+    const result = await model.generateContent([
+      { text: systemPrompt },
+      { text: userMessage },
+    ]);
+
+    const raw = result.response.text().trim();
+    const cleaned = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+    const parsed = JSON.parse(cleaned) as LLMResponse;
+
+    if (!Array.isArray(parsed.moves)) return null;
+    return parsed;
+  } catch (err) {
+    console.error("[reschedule] LLM error:", err);
+    return null;
+  }
+}
+
+// ─── Validate LLM moves ───────────────────────────────────────────────────────
+
+/**
+ * Verify each LLM-proposed move actually fits in a free slot and doesn't
+ * collide with other events. Filters out any bad moves.
+ */
+function validateMoves(
+  moves: LLMMove[],
+  events: CalendarEvent[],
+  freeSlots: FreeSlot[]
+): LLMMove[] {
+  const accepted: LLMMove[] = [];
+  // Track already-placed intervals so moves don't collide with each other
+  const placed: { startMs: number; endMs: number }[] = [];
+
+  for (const move of moves) {
+    const event = events.find((e) => e.id === move.eventId);
+    if (!event) continue;
+    if (event.locked) continue; // safety — LLM should never have proposed this
+
+    const newStart = new Date(move.newStart).getTime();
+    const newEnd = new Date(move.newEnd).getTime();
+
+    if (isNaN(newStart) || isNaN(newEnd) || newEnd <= newStart) continue;
+
+    // Must fit within at least one free slot
+    const fitsInFreeSlot = freeSlots.some((slot) => {
+      const slotStart = new Date(slot.start).getTime();
+      const slotEnd = new Date(slot.end).getTime();
+      return newStart >= slotStart && newEnd <= slotEnd;
+    });
+    if (!fitsInFreeSlot) continue;
+
+    // Must not collide with events that are NOT being moved
+    const movingIds = new Set(moves.map((m) => m.eventId));
+    const collidesWithFixed = events
+      .filter((e) => e.id !== move.eventId && !movingIds.has(e.id))
+      .some((e) => {
+        const eStart = new Date(e.start).getTime();
+        const eEnd = new Date(e.end).getTime();
+        return overlaps(newStart, newEnd, eStart, eEnd);
+      });
+    if (collidesWithFixed) continue;
+
+    // Must not collide with already-accepted moves
+    const collidesWithPlaced = placed.some((p) =>
+      overlaps(newStart, newEnd, p.startMs, p.endMs)
+    );
+    if (collidesWithPlaced) continue;
+
+    accepted.push(move);
+    placed.push({ startMs: newStart, endMs: newEnd });
+  }
+
+  return accepted;
+}
+
+// ─── Algorithmic fallback ─────────────────────────────────────────────────────
+
+function algorithmicFallback(
+  events: CalendarEvent[],
+  conflicts: { eventA: string; eventB: string }[]
+): RescheduleResult[] {
+  const priorityOf = (p?: string) => {
+    switch (p) {
+      case "urgent": return 4;
+      case "high": return 3;
+      case "medium": return 2;
+      case "low": return 1;
+      default: return 2;
+    }
+  };
+
+  const movedTimes = new Map<string, { startMs: number; endMs: number }>();
+  const results: RescheduleResult[] = [];
+  const processed = new Set<string>();
+
+  const getEff = (id: string, event: CalendarEvent) => {
+    return movedTimes.get(id) ?? {
+      startMs: new Date(event.start).getTime(),
+      endMs: new Date(event.end).getTime(),
+    };
+  };
+
+  for (const { eventA, eventB } of conflicts) {
+    const a = events.find((e) => e.id === eventA);
+    const b = events.find((e) => e.id === eventB);
+    if (!a || !b) continue;
+
+    const pairKey = [eventA, eventB].sort().join("|");
+    if (processed.has(pairKey)) continue;
+    processed.add(pairKey);
+
+    const aEff = getEff(a.id, a);
+    const bEff = getEff(b.id, b);
+    if (!overlaps(aEff.startMs, aEff.endMs, bEff.startMs, bEff.endMs)) continue;
+
+    let mover: CalendarEvent, anchor: CalendarEvent;
+    if (a.locked && b.locked) continue;
+    else if (a.locked) { mover = b; anchor = a; }
+    else if (b.locked) { mover = a; anchor = b; }
+    else if (priorityOf(a.priority) < priorityOf(b.priority)) { mover = a; anchor = b; }
+    else { mover = b; anchor = a; }
+
+    const anchorEff = getEff(anchor.id, anchor);
+    const moverEff = getEff(mover.id, mover);
+    const durationMs = moverEff.endMs - moverEff.startMs;
+
+    const workEnd = new Date(anchorEff.endMs);
+    workEnd.setHours(20, 0, 0, 0);
+
+    const busySlots = events
+      .filter((e) => e.id !== mover.id)
+      .map((e) => getEff(e.id, e));
+
+    let probe = snapTo15(anchorEff.endMs);
+    let newStartMs: number | null = null;
+
+    while (probe + durationMs <= workEnd.getTime()) {
+      const clash = busySlots.some((s) =>
+        overlaps(probe, probe + durationMs, s.startMs, s.endMs)
       );
-
-      if (!conflictsWithBlocked) {
-        // No conflict, keep as is
-        blockedSlots.push({
-          startMs: interval.startMs - TRANSITION_BUFFER_MS,
-          endMs: interval.endMs + TRANSITION_BUFFER_MS,
-        });
-        results.push({
-          eventId: interval.eventId,
-          title: interval.event.title,
-          originalStart: interval.event.start,
-          originalEnd: interval.event.end,
-          newStart: interval.event.start,
-          newEnd: interval.event.end,
-          reason: "No conflicts detected",
-          status: "unchanged",
-        });
-        continue;
-      }
+      if (!clash) { newStartMs = probe; break; }
+      probe += GRID_MS;
     }
 
-    // Find a new slot for this event
-    const duration = interval.endMs - interval.startMs;
-    const newSlot = findAvailableSlot(
-      interval.startMs,
-      duration,
-      blockedSlots,
-      tz,
-      windowEndMs
-    );
-
-    if (newSlot) {
-      blockedSlots.push({
-        startMs: newSlot.startMs - TRANSITION_BUFFER_MS,
-        endMs: newSlot.endMs + TRANSITION_BUFFER_MS,
-      });
-
-      const newStart = new Date(newSlot.startMs).toISOString();
-      const newEnd = new Date(newSlot.endMs).toISOString();
-
+    if (newStartMs === null) {
       results.push({
-        eventId: interval.eventId,
-        title: interval.event.title,
-        originalStart: interval.event.start,
-        originalEnd: interval.event.end,
-        newStart,
-        newEnd,
-        reason: generateRescheduleReason(interval, newSlot, tz),
-        status: "moved",
-      });
-    } else {
-      // Could not find a slot, keep original
-      results.push({
-        eventId: interval.eventId,
-        title: interval.event.title,
-        originalStart: interval.event.start,
-        originalEnd: interval.event.end,
-        newStart: interval.event.start,
-        newEnd: interval.event.end,
-        reason: "Could not find available time slot — kept at original time",
+        eventId: mover.id, title: mover.title,
+        originalStart: mover.start, originalEnd: mover.end,
+        newStart: mover.start, newEnd: mover.end,
+        reason: `No slot available today after "${anchor.title}"`,
         status: "unchanged",
+      });
+      continue;
+    }
+
+    movedTimes.set(mover.id, { startMs: newStartMs, endMs: newStartMs + durationMs });
+    results.push({
+      eventId: mover.id, title: mover.title,
+      originalStart: mover.start, originalEnd: mover.end,
+      newStart: new Date(newStartMs).toISOString(),
+      newEnd: new Date(newStartMs + durationMs).toISOString(),
+      reason: `Moved after "${anchor.title}" to resolve overlap`,
+      status: "moved",
+    });
+  }
+
+  const movedIds = new Set(results.map((r) => r.eventId));
+  for (const e of events) {
+    if (!movedIds.has(e.id)) {
+      results.push({
+        eventId: e.id, title: e.title,
+        originalStart: e.start, originalEnd: e.end,
+        newStart: e.start, newEnd: e.end,
+        reason: "No conflict", status: "unchanged",
       });
     }
   }
@@ -349,120 +421,20 @@ function rescheduleEvents(
   return results;
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  SLOT FINDER
-// ═══════════════════════════════════════════════════════════════
-function findAvailableSlot(
-  preferredStart: number,
-  duration: number,
-  blockedSlots: { startMs: number; endMs: number }[],
-  tz: string,
-  windowEndMs: number
-): { startMs: number; endMs: number } | null {
-  const WORK_START = 8 * 60; // 8 AM
-  const WORK_END = 20 * 60;  // 8 PM
-  const LUNCH_START = 12 * 60;
-  const LUNCH_END = 13 * 60;
+// ─── Apply moves to Google Calendar ──────────────────────────────────────────
 
-  let probeMs = snapTo15(preferredStart);
-  const maxProbe = windowEndMs;
-
-  while (probeMs + duration <= maxProbe) {
-    const localStart = getLocalMinutes(new Date(probeMs), tz);
-    const localEnd = getLocalMinutes(new Date(probeMs + duration), tz);
-
-    // Check work hours
-    const withinWorkHours = localStart >= WORK_START && localEnd <= WORK_END;
-
-    // Avoid lunch
-    const hitsLunch = localStart < LUNCH_END && localEnd > LUNCH_START;
-
-    // Check blocked slots
-    const conflictsWithBlocked = blockedSlots.some(
-      (slot) => overlaps(probeMs, probeMs + duration, slot.startMs, slot.endMs)
-    );
-
-    if (withinWorkHours && !hitsLunch && !conflictsWithBlocked) {
-      return { startMs: probeMs, endMs: probeMs + duration };
-    }
-
-    // Advance cursor intelligently
-    if (localStart >= WORK_END - 15) {
-      // Jump to next day's work start
-      const nextDay = new Date(probeMs);
-      nextDay.setHours(0, 0, 0, 0);
-      nextDay.setTime(nextDay.getTime() + 24 * MS_PER_HOUR);
-      const dateKey = getLocalDateKey(nextDay, tz);
-      probeMs = new Date(`${dateKey}T08:00:00`).getTime();
-    } else if (localStart >= LUNCH_START - 15 && localStart < LUNCH_END) {
-      // Jump past lunch
-      probeMs = snapTo15(probeMs + (LUNCH_END - localStart) * MS_PER_MIN);
-    } else {
-      probeMs += GRID_MS;
-    }
-  }
-
-  return null;
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  REASON GENERATOR
-// ═══════════════════════════════════════════════════════════════
-function generateRescheduleReason(
-  original: TimeInterval & { event: CalendarEvent },
-  newSlot: { startMs: number; endMs: number },
-  tz: string
-): string {
-  const originalDate = new Date(original.startMs);
-  const newDate = new Date(newSlot.startMs);
-
-  const originalDay = getLocalDateKey(originalDate, tz);
-  const newDay = getLocalDateKey(newDate, tz);
-
-  const parts: string[] = [];
-
-  if (originalDay !== newDay) {
-    parts.push(`Moved to ${newDay} to avoid conflicts`);
-  } else {
-    const originalLocalMin = getLocalMinutes(originalDate, tz);
-    const newLocalMin = getLocalMinutes(newDate, tz);
-
-    if (newLocalMin < originalLocalMin) {
-      parts.push("Moved earlier to accommodate other events");
-    } else {
-      parts.push("Moved later to resolve scheduling conflict");
-    }
-  }
-
-  // Add energy tier context
-  const newLocalMin = getLocalMinutes(newDate, tz);
-  if (newLocalMin >= 9 * 60 && newLocalMin < 12 * 60) {
-    parts.push("Placed in peak energy hours (9AM-12PM)");
-  } else if (newLocalMin >= 13 * 60 && newLocalMin < 16 * 60) {
-    parts.push("Placed in focus hours (1PM-4PM)");
-  } else if (newLocalMin >= 16 * 60) {
-    parts.push("Placed in wind-down hours (4PM-8PM)");
-  }
-
-  return parts.join(". ") + ".";
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  UPDATE GOOGLE CALENDAR
-// ═══════════════════════════════════════════════════════════════
-async function applyReschedule(
+async function applyMoves(
   accessToken: string,
   results: RescheduleResult[]
-): Promise<{ success: boolean; applied: number; failed: number }> {
+): Promise<{ applied: number; failed: number }> {
   let applied = 0;
   let failed = 0;
 
-  for (const result of results) {
-    if (result.status !== "moved") continue;
-
+  for (const r of results) {
+    if (r.status !== "moved") continue;
     try {
       const res = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${result.eventId}`,
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${r.eventId}`,
         {
           method: "PATCH",
           headers: {
@@ -470,114 +442,138 @@ async function applyReschedule(
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            start: { dateTime: result.newStart },
-            end: { dateTime: result.newEnd },
+            start: { dateTime: r.newStart },
+            end: { dateTime: r.newEnd },
           }),
         }
       );
-
-      if (res.ok) {
-        applied++;
-      } else {
-        failed++;
-      }
+      if (res.ok) applied++; else failed++;
     } catch {
       failed++;
     }
   }
 
-  return { success: failed === 0, applied, failed };
+  return { applied, failed };
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  MAIN HANDLER
-// ═══════════════════════════════════════════════════════════════
+// ─── POST — resolve & apply ───────────────────────────────────────────────────
+
 export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const body = await req.json();
     const {
-      changedEvent,
       windowDays = 7,
-      timeZone = "UTC",
+      timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
       apply = false,
-    } = body as {
-      changedEvent?: { id: string; newEnd?: string; isNew?: boolean };
-      windowDays?: number;
-      timeZone?: string;
-      apply?: boolean;
-    };
+    } = body as { windowDays?: number; timeZone?: string; apply?: boolean };
 
     const accessToken = await getGoogleAccessTokenForUser(supabase, user.id);
-
     const now = new Date();
     const windowEnd = new Date(now.getTime() + windowDays * 24 * MS_PER_HOUR);
 
-    // Fetch current calendar events
+    // 1. Fetch events
     const events = await fetchCalendarEvents(accessToken, now, windowEnd);
 
-    // Detect conflicts
-    const conflicts = detectConflicts(events, changedEvent);
+    // 2. Find conflicts
+    const conflicts = detectConflicts(events);
 
-    // If no conflicts, return early
     if (conflicts.length === 0) {
       return NextResponse.json({
         status: "optimal",
-        message: "No conflicts detected — schedule is already optimal",
-        conflicts: [],
+        message: "No conflicts — schedule is already optimal",
         reschedule: [],
       });
     }
 
-    // Calculate rescheduling plan
-    const rescheduleResults = rescheduleEvents(
+    // 3. Build free slots for the window
+    const freeSlots = buildFreeSlots(events, now.getTime(), windowEnd.getTime(), timeZone);
+
+    // 4. Ask LLM
+    const payload: LLMPayload = {
+      timezone: timeZone,
+      workHours: { start: "08:00", end: "20:00" },
+      today: now.toISOString().slice(0, 10),
       events,
       conflicts,
-      timeZone,
-      windowEnd.getTime()
-    );
+      freeSlots,
+    };
 
-    // Optionally apply changes
+    const llmResponse = await askLLM(payload);
+
+    let rescheduleResults: RescheduleResult[];
+
+    if (llmResponse && llmResponse.moves.length > 0) {
+      // 5a. Validate LLM moves
+      const validMoves = validateMoves(llmResponse.moves, events, freeSlots);
+      const movedIds = new Set(validMoves.map((m) => m.eventId));
+
+      rescheduleResults = [
+        ...validMoves.map((move) => {
+          const event = events.find((e) => e.id === move.eventId)!;
+          return {
+            eventId: event.id,
+            title: event.title,
+            originalStart: event.start,
+            originalEnd: event.end,
+            newStart: move.newStart,
+            newEnd: move.newEnd,
+            reason: move.reason,
+            status: "moved" as const,
+          };
+        }),
+        ...events
+          .filter((e) => !movedIds.has(e.id))
+          .map((e) => ({
+            eventId: e.id, title: e.title,
+            originalStart: e.start, originalEnd: e.end,
+            newStart: e.start, newEnd: e.end,
+            reason: "No move needed", status: "unchanged" as const,
+          })),
+      ];
+    } else {
+      // 5b. Fallback to algorithm
+      rescheduleResults = algorithmicFallback(events, conflicts);
+    }
+
+    // 6. Apply
+    const moved = rescheduleResults.filter((r) => r.status === "moved");
     let applyResult = null;
-    if (apply) {
-      applyResult = await applyReschedule(accessToken, rescheduleResults);
+    if (apply && moved.length > 0) {
+      applyResult = await applyMoves(accessToken, rescheduleResults);
     }
 
     return NextResponse.json({
-      status: "resolved",
-      message: `Found ${conflicts.length} conflict(s) — ${rescheduleResults.filter(r => r.status === "moved").length} event(s) rescheduled`,
-      conflicts,
+      status: moved.length > 0 ? "resolved" : "optimal",
+      message: llmResponse?.summary ?? `${moved.length} event(s) rescheduled`,
       reschedule: rescheduleResults,
       applied: applyResult,
+      usedLLM: !!llmResponse,
     });
   } catch (err) {
     console.error("[reschedule]", err);
-    const message = err instanceof Error ? err.message : "Rescheduling failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Rescheduling failed." },
+      { status: 500 }
+    );
   }
 }
 
-// GET handler to check for conflicts without rescheduling
+// ─── GET — conflict check only ────────────────────────────────────────────────
+
 export async function GET(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const { searchParams } = new URL(req.url);
     const windowDays = parseInt(searchParams.get("windowDays") ?? "7", 10);
 
     const accessToken = await getGoogleAccessTokenForUser(supabase, user.id);
-
     const now = new Date();
     const windowEnd = new Date(now.getTime() + windowDays * 24 * MS_PER_HOUR);
 
@@ -587,12 +583,13 @@ export async function GET(req: Request) {
     return NextResponse.json({
       hasConflicts: conflicts.length > 0,
       conflictCount: conflicts.length,
-      conflicts,
       eventCount: events.length,
     });
   } catch (err) {
     console.error("[reschedule-check]", err);
-    const message = err instanceof Error ? err.message : "Conflict check failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Conflict check failed." },
+      { status: 500 }
+    );
   }
 }

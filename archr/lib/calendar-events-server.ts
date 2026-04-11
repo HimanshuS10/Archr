@@ -38,8 +38,7 @@ export async function fetchCalendarEventsForServer(
     `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
-      // cache this for 60 seconds so rapid navigations reuse the same fetch
-      next: { revalidate: 60 },
+      cache: "no-store",
     },
   );
 

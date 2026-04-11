@@ -82,10 +82,10 @@ export function useCalendarOptimizer(options: UseCalendarOptimizerOptions = {}) 
         setState((prev) => ({
           ...prev,
           status: "detecting",
-          conflicts: data.conflicts,
+          conflicts: data.conflicts ?? [],
           message: `${data.conflictCount} conflict(s) detected`,
         }));
-        onConflictsDetected?.(data.conflicts);
+        onConflictsDetected?.(data.conflicts ?? []);
       } else {
         setState((prev) => ({
           ...prev,
@@ -269,8 +269,8 @@ export function useCalendarOptimizer(options: UseCalendarOptimizerOptions = {}) 
     triggerReschedule,
     reset,
     isOptimizing: isOptimizingRef.current,
-    hasConflicts: state.conflicts.length > 0,
-    movedEvents: state.reschedule.filter((r) => r.status === "moved"),
+    hasConflicts: (state.conflicts?.length ?? 0) > 0,
+    movedEvents: (state.reschedule ?? []).filter((r) => r.status === "moved"),
   };
 }
 
