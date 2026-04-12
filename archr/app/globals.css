@@ -132,94 +132,140 @@
   }
 }
 
-/* FullCalendar light-mode styling */
+/* ── FullCalendar — clean pastel calendar theme ─────────────────────────── */
 .archr-calendar .fc {
-  --fc-border-color: #e5e7eb;
+  --fc-border-color: #f1f5f9;
   --fc-page-bg-color: transparent;
-  --fc-now-indicator-color: #2563eb;
-  --fc-today-bg-color: rgba(37, 99, 235, 0.05);
-  --fc-event-bg-color: #2563eb;
-  --fc-event-border-color: #1d4ed8;
-  --fc-event-text-color: #ffffff;
-  --fc-list-event-hover-bg-color: rgba(37, 99, 235, 0.08);
-  color: #1f2937;
-  font-size: 13px;
+  --fc-now-indicator-color: #6366f1;
+  --fc-today-bg-color: rgba(99, 102, 241, 0.04);
+  /* default event = soft lavender (used when no colorId is set) */
+  --fc-event-bg-color: rgba(121, 134, 203, 0.18);
+  --fc-event-border-color: rgba(121, 134, 203, 0.55);
+  --fc-event-text-color: #1e293b;
+  color: #334155;
+  font-size: 12px;
+  font-family: inherit;
 }
 
-.archr-calendar .fc .fc-toolbar-title {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: #111827;
-}
-
-.archr-calendar .fc .fc-button {
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  color: #374151;
-  text-transform: capitalize;
-  padding: 0.35rem 0.6rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.archr-calendar .fc .fc-button:hover,
-.archr-calendar .fc .fc-button:focus {
-  background: #f3f4f6;
-  border-color: #9ca3af;
-  color: #111827;
-}
-
-.archr-calendar .fc .fc-button-primary:not(:disabled).fc-button-active {
-  background: #1d4ed8;
-  border-color: #1e40af;
-  color: #ffffff;
-}
-
+/* Day column headers: MON 14 */
 .archr-calendar .fc .fc-col-header-cell-cushion {
-  color: #6b7280;
+  font-size: 0.65rem;
   font-weight: 600;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  color: #94a3b8;
+  padding: 8px 0 6px;
+  text-decoration: none;
 }
 
-.archr-calendar .fc .fc-timegrid-slot-label,
+/* Today column header highlight */
+.archr-calendar .fc .fc-day-today .fc-col-header-cell-cushion {
+  color: #6366f1;
+}
+
+/* Time slot labels */
+.archr-calendar .fc .fc-timegrid-slot-label-cushion,
 .archr-calendar .fc .fc-timegrid-axis-cushion {
-  color: #9ca3af;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
+  color: #cbd5e1;
+  font-weight: 400;
+  padding-right: 10px;
 }
 
-.archr-calendar .fc .fc-daygrid-day-number,
-.archr-calendar .fc .fc-timegrid-axis {
-  color: #374151;
-}
-
+/* Grid lines — very subtle */
 .archr-calendar .fc .fc-scrollgrid,
-.archr-calendar .fc .fc-scrollgrid-section > td {
-  border-color: #e5e7eb;
+.archr-calendar .fc .fc-scrollgrid-section > td,
+.archr-calendar .fc .fc-timegrid-slot {
+  border-color: #f1f5f9;
 }
 
+/* Remove thick outer border */
+.archr-calendar .fc .fc-scrollgrid {
+  border: none;
+}
+
+/* Fixed slot height — consistent across all screen sizes, grid always scrolls */
+.archr-calendar .fc .fc-timegrid-slot {
+  height: 52px !important;
+}
+
+/* Half-hour lines invisible */
+.archr-calendar .fc .fc-timegrid-slot-minor {
+  border-top-style: none;
+}
+
+/* ── Events ── */
 .archr-calendar .fc .fc-event {
   border-radius: 8px;
-  padding: 2px 6px;
-  font-size: 0.75rem;
+  border-width: 1px;
+  border-style: solid;
+  box-shadow: none;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.archr-calendar .fc .fc-timegrid-event {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+/* Event inner padding */
+.archr-calendar .fc .fc-event .fc-event-main {
+  padding: 3px 7px 4px;
+}
+
+/* Stack time above title */
+.archr-calendar .fc .fc-event .fc-event-main-frame {
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* Event time — small, muted */
+.archr-calendar .fc .fc-event .fc-event-time {
+  font-size: 0.6rem;
   font-weight: 500;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2);
-  opacity: 0.88;
+  opacity: 0.68;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 
+/* Event title — bolder, slightly larger */
+.archr-calendar .fc .fc-event .fc-event-title-container {
+  flex: 1;
+  min-height: 0;
+}
+
+.archr-calendar .fc .fc-event .fc-event-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Now indicator */
 .archr-calendar .fc .fc-timegrid-now-indicator-line {
-  border-color: #4f46e5;
-  border-width: 2px;
+  border-color: #6366f1;
+  border-width: 1.5px;
 }
 
+.archr-calendar .fc .fc-timegrid-now-indicator-arrow {
+  border-top-color: #6366f1;
+  border-bottom-color: #6366f1;
+}
+
+/* Thin scrollbar */
 .archr-calendar .fc .fc-scroller {
   scrollbar-width: thin;
-  scrollbar-color: #d1d5db transparent;
+  scrollbar-color: #e2e8f0 transparent;
 }
 
 .archr-calendar .fc .fc-scroller::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
 }
 
 .archr-calendar .fc .fc-scroller::-webkit-scrollbar-track {
@@ -227,14 +273,16 @@
 }
 
 .archr-calendar .fc .fc-scroller::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: #e2e8f0;
   border-radius: 999px;
 }
 
 .archr-calendar .fc .fc-scroller::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: #cbd5e1;
 }
 
-.archr-calendar .fc .fc-scroller::-webkit-scrollbar-button {
-  display: none;
+/* Selection highlight */
+.archr-calendar .fc .fc-highlight {
+  background: rgba(99, 102, 241, 0.07);
+  border-radius: 8px;
 }

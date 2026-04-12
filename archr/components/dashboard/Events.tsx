@@ -392,8 +392,8 @@ const Events = ({ isExpanded }: EventsProp) => {
 
   return (
     <main
-      className="min-h-screen bg-white px-8 pt-6 pb-8 transition-[margin] duration-300"
-      style={{ marginLeft: isExpanded ? 260 : 70 }}
+      className="min-h-screen bg-slate-50/50 px-8 pt-6 pb-8 transition-[margin] duration-300"
+      style={{ marginLeft: isExpanded ? 200 : 56 }}
     >
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-4">

@@ -23,8 +23,8 @@ function Dashboard({ isExpanded }: DashboardProps) {
 
   return (
     <main
-      className="h-screen overflow-hidden px-8 pt-2 pb-3 transition-[margin] duration-300"
-      style={{ marginLeft: isExpanded ? 260 : 70 }}
+      className="flex h-screen flex-col overflow-hidden bg-slate-50/50 px-8 pt-2 pb-3 transition-[margin] duration-300"
+      style={{ marginLeft: isExpanded ? 200 : 56 }}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -74,7 +74,7 @@ function Dashboard({ isExpanded }: DashboardProps) {
           ))}
         </div>
       </div>
-      <div className="mt-2 h-[calc(100vh-5.75rem)]">
+      <div className="mt-2 min-h-0 flex-1">
         <CalendarView ref={calendarRef} onTitleChange={setTitle} />
       </div>
     </main>

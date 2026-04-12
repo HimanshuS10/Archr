@@ -4,20 +4,18 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 
-export default function OnboardingPage() {
+export default function ConnectCalendarPage() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState("");
 
-  const handleConnectGoogleCalendar = async () => {
+  const handleConnect = async () => {
     setIsConnecting(true);
     setError("");
 
-    const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
-    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo,
+        redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
         scopes: "https://www.googleapis.com/auth/calendar",
         queryParams: {
           access_type: "offline",
@@ -30,49 +28,68 @@ export default function OnboardingPage() {
     if (error) {
       setError("Could not connect Google Calendar. Please try again.");
       setIsConnecting(false);
-      return;
     }
   };
 
   return (
-    <main className="min-h-screen bg-white text-slate-900 flex items-center justify-center px-6">
-      <div className="w-full max-w-xl rounded-3xl bg-white p-8 overflow-hidden">
-        <div className="relative w-full rounded-2xl border border-slate-200 bg-white p-8 shadow-xl">
+    <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 px-4 py-12">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,0.06),transparent_50%)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(59,130,246,0.06),transparent_50%)]" />
+
+      <div className="relative w-full max-w-sm">
+        <div className="rounded-2xl border border-slate-200/80 bg-white px-8 py-10 shadow-xl shadow-slate-200/60">
+
           {/* Logo */}
-          <div className="flex w-full justify-center mb-8">
-            <div className="inline-flex items-center gap-3 rounded-full px-4 py-2">
-              <Image src="/Logo.png" alt="Archr logo" width={35} height={35} />
-              <span className="text-lg -ml-2 font-semibold text-slate-900">Archr</span>
+          <div className="flex justify-center mb-8">
+            <Image src="/Logo.png" alt="Archr" width={38} height={38} />
+          </div>
+
+          {/* Progress bar */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-slate-500">Step 2 of 2</span>
+              <span className="text-xs text-slate-400">100%</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-slate-100">
+              <div className="h-1.5 w-full rounded-full bg-blue-500 transition-all duration-500" />
             </div>
           </div>
 
-          <div className="flex flex-col items-center text-center">
-            <h1 className="text-2xl font-semibold text-slate-900 sm:text-3xl">
-              Connect Google Calendar
-            </h1>
-            <p className="mt-3 max-w-md text-sm text-slate-500 sm:text-base">
-              Link your calendar to let Archr auto-plan tasks and events around your
-              real schedule.
+          {/* Content */}
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center ">
+              <Image src="/GoogleCalendarLogo.png" alt="Google" width={30} height={30} />
+            </div>
+            <h1 className="text-xl font-semibold text-slate-900">Connect your calendar</h1>
+            <p className="mt-2 text-sm text-slate-500">
+              Archr syncs with Google Calendar to automatically schedule and protect your time.
             </p>
           </div>
 
           <button
             type="button"
-            onClick={handleConnectGoogleCalendar}
+            onClick={handleConnect}
             disabled={isConnecting}
-            className={`mt-8 w-full rounded-full bg-linear-to-b from-blue-500 via-blue-600 to-blue-700 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-400 hover:via-blue-500 hover:to-blue-600 ${
-              isConnecting ? "opacity-60 cursor-not-allowed" : "hover:cursor-pointer"
-            }`}
+            className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-slate-900 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <span className="inline-flex items-center justify-center gap-2">
-              <Image src="/GoogleLogo.png" alt="Google logo" width={18} height={18} />
-              {isConnecting ? "Connecting..." : "Connect Google Calendar"}
-            </span>
+            <Image src="/Google.png" alt="Google" width={17} height={17} />
+            {isConnecting ? "Connecting…" : "Connect Google Calendar"}
           </button>
 
-          {error ? <p className="mt-4 text-center text-sm text-red-500">{error}</p> : null}
+          {error && (
+            <p className="mt-3 rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-xs text-red-600 text-center">
+              {error}
+            </p>
+          )}
+
+          <a
+            href="/dashboard"
+            className="mt-4 block text-center text-xs text-slate-400 hover:text-slate-600 transition"
+          >
+            Skip for now
+          </a>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

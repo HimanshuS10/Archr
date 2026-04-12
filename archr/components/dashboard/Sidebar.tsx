@@ -9,12 +9,19 @@ import {
   Home04Icon,
   Calendar01Icon,
   TaskDaily02Icon,
-  SidebarRight01Icon
+  Flag01Icon,
+  SidebarRight01Icon,
+  Logout01Icon,
 } from "@hugeicons/core-free-icons";
 
+export type Tab = "Home" | "Events" | "Tasks To Do" | "Deadlines";
 
-const navItems: Tab[] = ["Home", "Events", "Tasks"];
-type Tab = "Home" | "Events" | "Tasks";
+const NAV_ITEMS: { tab: Tab; label: string; icon: React.ComponentProps<typeof HugeiconsIcon>["icon"] }[] = [
+  { tab: "Home",      label: "Home",      icon: Home04Icon      },
+  { tab: "Events",    label: "Events",    icon: Calendar01Icon  },
+  { tab: "Tasks To Do",     label: "Tasks To Do",     icon: TaskDaily02Icon },
+  { tab: "Deadlines", label: "Deadlines", icon: Flag01Icon      },
+];
 
 type SidebarProps = {
   collapsed: boolean;
@@ -23,151 +30,144 @@ type SidebarProps = {
   onTabChange: (tab: Tab) => void;
 };
 
-export default function Sidebar({
-  collapsed,
-  onToggle,
-  activeTab,
-  onTabChange,
-}: SidebarProps) {
+export default function Sidebar({ collapsed, onToggle, activeTab, onTabChange }: SidebarProps) {
   const router = useRouter();
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const [displayName, setDisplayName] = useState("User");
-  const [email, setEmail] = useState("user@email.com");
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [email, setEmail] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
-    const loadUser = async () => {
-      const { data } = await supabase.auth.getUser();
+    supabase.auth.getUser().then(({ data }) => {
       const user = data.user;
       if (!user) return;
-
-      const name =
+      setDisplayName(
         user.user_metadata?.name ||
         user.user_metadata?.full_name ||
         user.user_metadata?.preferred_username ||
-        "User";
-      setDisplayName(name);
-      setEmail(user.email ?? "user@email.com");
-    };
-
-    loadUser();
+        "User"
+      );
+      setEmail(user.email ?? "");
+    });
   }, []);
 
   useEffect(() => {
-    const handleOutsideClick = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (!profileMenuRef.current?.contains(target)) {
-        setIsProfileMenuOpen(false);
-      }
+    const handler = (e: MouseEvent) => {
+      if (!profileMenuRef.current?.contains(e.target as Node)) setMenuOpen(false);
     };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  useEffect(() => {
-    if (collapsed) {
-      setIsProfileMenuOpen(false);
-    }
-  }, [collapsed]);
+  useEffect(() => { if (collapsed) setMenuOpen(false); }, [collapsed]);
 
   const handleSignOut = async () => {
-    setIsSigningOut(true);
+    setSigningOut(true);
     await supabase.auth.signOut();
     router.replace("/login");
-    setIsSigningOut(false);
   };
+
+  const initials = displayName.trim().charAt(0).toUpperCase();
 
   return (
     <aside
-      className={`group fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-slate-200 bg-white py-2 text-slate-900 transition-all duration-300 ${collapsed ? "w-[70px] px-3" : "w-[260px] px-6"
-        }`}
+      className={`group fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-slate-100 bg-white transition-all duration-300 ${
+        collapsed ? "w-[56px]" : "w-[200px]"
+      }`}
     >
-      {/* Logo + collapse toggle */}
-      <div className="relative flex items-center justify-center">
-        <div className={`flex items-center gap-3 ${collapsed ? "" : "pr-12"}`}>
-          <Image src="/Logo.png" alt="Archr logo" width={44} height={44} />
-          {!collapsed && (
-            <h2 className="text-2xl font-semibold text-slate-900">Archr</h2>
-          )}
-        </div>
+      {/* ── Header ── */}
+      <div className={`flex h-14 items-center justify-center border-b border-slate-100 ${collapsed ? "px-0" : "gap-2 px-4"}`}>
+        <Image src="/Logo.png" alt="Archr" width={28} height={28} className="shrink-0" />
+        {!collapsed && (
+          <span className="text-sm font-semibold text-slate-900 tracking-tight">Archr</span>
+        )}
+      </div>
 
-        {/* When expanded: always visible. When collapsed: hidden until sidebar hover */}
+      {/* ── Nav ── */}
+      <nav className={`mt-3 flex flex-1 flex-col gap-0.5 ${collapsed ? "px-2" : "px-3"}`}>
+        {!collapsed && (
+          <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+            Menu
+          </p>
+        )}
+
+        {NAV_ITEMS.map(({ tab, label, icon }) => {
+          const isActive = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => onTabChange(tab)}
+              title={collapsed ? label : undefined}
+              className={`flex items-center gap-2.5 rounded-lg px-2 py-2 text-left text-xs font-medium transition-colors hover:cursor-pointer ${
+                isActive
+                  ? "bg-blue-50 text-blue-600"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+              } ${collapsed ? "justify-center" : ""}`}
+            >
+              <HugeiconsIcon
+                icon={icon}
+                className={`h-4 w-4 shrink-0 ${isActive ? "text-blue-500" : "text-slate-400"}`}
+              />
+              {!collapsed && label}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* ── Collapse toggle ── */}
+      <div className={`pb-2 ${collapsed ? "flex justify-center" : "px-3"}`}>
         <button
           type="button"
           onClick={onToggle}
-          className={`absolute right-0 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 ${
-            collapsed
-              ? "opacity-0 group-hover:opacity-100"
-              : "opacity-100"
-          }`}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand" : "Collapse"}
+          className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-50 hover:text-slate-700"
         >
           <HugeiconsIcon
             icon={SidebarRight01Icon}
-            className={`h-6 w-6 transition-transform ${collapsed ? "" : "rotate-180"}`}
+            className={`h-4 w-4 shrink-0 transition-transform duration-300 ${collapsed ? "" : "rotate-180"}`}
           />
+          {!collapsed && <span>Collapse</span>}
         </button>
       </div>
 
-      <hr className="border-slate-200 mt-4" />
-
-      {/* Nav */}
-      <nav className="mt-10 flex flex-1 flex-col gap-3 text-base">
-        {navItems.map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => onTabChange(item)}
-            className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-left text-sm font-medium transition ${item === activeTab
-              ? "bg-blue-50 text-blue-600 ring-1 ring-inset ring-blue-200"
-              : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-              }`}
-          >
-            {item === "Home" ? (
-              <HugeiconsIcon icon={Home04Icon} className="h-4 w-4 shrink-0" />
-            ) : item === "Events" ? (
-              <HugeiconsIcon icon={Calendar01Icon} className="h-4 w-4 shrink-0" />
-            ) : (
-              <HugeiconsIcon icon={TaskDaily02Icon} className="h-4 w-4 shrink-0" />
-            )}
-            {!collapsed && item}
-          </button>
-        ))}
-      </nav>
-
-      {/* Profile */}
-      <div className="relative mb-6" ref={profileMenuRef}>
-        {isProfileMenuOpen && (
+      {/* ── Profile ── */}
+      <div className={`relative border-t border-slate-100 pb-3 pt-2 ${collapsed ? "px-2" : "px-3"}`} ref={profileMenuRef}>
+        {menuOpen && (
           <div
-            className={`absolute bottom-full mb-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-200/60 ${collapsed ? "left-1/2 w-44 -translate-x-1/2" : "left-0 right-0"
-              }`}
+            className={`absolute bottom-full mb-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg shadow-slate-200/60 ${
+              collapsed ? "left-1/2 w-40 -translate-x-1/2" : "left-3 right-3"
+            }`}
           >
+            <div className="mb-1.5 px-2 py-1.5">
+              <p className="text-xs font-semibold text-slate-800 truncate">{displayName}</p>
+              <p className="text-[11px] text-slate-400 truncate">{email}</p>
+            </div>
+            <hr className="border-slate-100 mb-1" />
             <button
               type="button"
               onClick={handleSignOut}
-              disabled={isSigningOut}
-              className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 hover:cursor-pointer"
+              disabled={signingOut}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-red-500 transition hover:bg-red-50 disabled:opacity-60"
             >
-              {isSigningOut ? "Logging out..." : "Log out"}
+              <HugeiconsIcon icon={Logout01Icon} className="h-3.5 w-3.5" />
+              {signingOut ? "Logging out…" : "Log out"}
             </button>
           </div>
         )}
 
         <button
           type="button"
-          onClick={() => setIsProfileMenuOpen((prev) => !prev)}
-          className={`flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:cursor-pointer ${collapsed ? "justify-center" : ""
-            }`}
+          onClick={() => setMenuOpen((p) => !p)}
+          className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 transition hover:bg-slate-50 ${collapsed ? "justify-center" : ""}`}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-semibold text-blue-600 ring-1 ring-blue-200">
-            {displayName.trim().charAt(0).toUpperCase()}
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-600">
+            {initials}
           </div>
           {!collapsed && (
-            <div className="text-left overflow-hidden">
-              <p className="font-medium text-slate-800 truncate">{displayName}</p>
-              <p className="mt-0.5 truncate text-slate-400">{email}</p>
+            <div className="min-w-0 text-left">
+              <p className="text-xs font-medium text-slate-800 truncate leading-tight">{displayName}</p>
             </div>
           )}
         </button>

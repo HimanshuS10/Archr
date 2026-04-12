@@ -204,10 +204,13 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
               ? {
                   backgroundColor: withOpacity(
                     EVENT_COLOR_BY_ID[String(item.colorId)].hex,
-                    0.2,
+                    0.15,
                   ),
-                  borderColor: EVENT_COLOR_BY_ID[String(item.colorId)].hex,
-                  textColor: "#0f172a",
+                  borderColor: withOpacity(
+                    EVENT_COLOR_BY_ID[String(item.colorId)].hex,
+                    0.55,
+                  ),
+                  textColor: "#1e293b",
                 }
               : {}),
             id: item.id,
@@ -368,32 +371,26 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
     }));
 
     return (
-      <div className="archr-calendar h-full rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
-        {/* <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-white">Your Calendar</h2>
-          <p className="text-sm text-white/60">Synced from Google Calendar</p>
-        </div>
-      </div> */}
-
+      <div className="archr-calendar h-full">
         {loading ? (
-          <div className="text-sm text-white/60">Loading events...</div>
+          <div className="flex h-full items-center justify-center text-sm text-slate-400">
+            Loading calendar…
+          </div>
         ) : needsConnect ? (
-          <div className="space-y-3">
-            <p className="text-sm text-white/70">
-              Connect your Google Calendar to sync events. If this is your first
-              time after the token migration, one reconnect may be required.
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+            <p className="max-w-xs text-sm text-slate-500">
+              Connect your Google Calendar to sync events.
             </p>
             <button
               type="button"
               onClick={handleConnect}
-              className="rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-300 hover:via-blue-400 hover:to-blue-500"
+              className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
             >
               Connect Google Calendar
             </button>
           </div>
         ) : error ? (
-          <div className="text-sm text-red-300">{error}</div>
+          <div className="flex h-full items-center justify-center text-sm text-red-400">{error}</div>
         ) : (
           <div className="h-full">
             <FullCalendar
@@ -407,118 +404,132 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
               selectMirror
               select={openCreate}
               eventClick={openEdit}
+              slotDuration="01:00:00"
+              slotLabelInterval="01:00:00"
+              scrollTime="08:00:00"
+              nowIndicator
               height="100%"
             />
           </div>
         )}
 
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0b0d16] p-6 text-white">
-              <div className="flex item-center justify-between">
-                <h3 className="text-lg font-semibold">
-                  {editingId ? "Edit event" : "Add event"}
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4">
+            <div className="w-full max-w-sm rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-200/60">
+
+              {/* Modal header */}
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  {editingId ? "Edit event" : "New event"}
                 </h3>
-                <button type="button" onClick={handleDelete} disabled={saving}>
-                  <HugeiconsIcon
-                    icon={Delete02Icon}
-                    className="text-gray-400 cursor-pointer"
-                  />
-                </button>{" "}
+                <div className="flex items-center gap-1">
+                  {editingId && (
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={saving}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
+                      title="Delete event"
+                    >
+                      <HugeiconsIcon icon={Delete02Icon} className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
-              <div className="mt-4 grid gap-3">
-                <div className="grid gap-1">
-                  <label className="text-xs uppercase tracking-[0.3em] text-white/50">
-                    Title
-                  </label>
+              {/* Modal body */}
+              <div className="px-5 py-4 grid gap-3">
+                <div className="grid gap-1.5">
+                  <label className="text-xs font-medium text-slate-500">Title</label>
                   <input
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition"
                     placeholder="Event title"
-                  />
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-xs uppercase tracking-[0.3em] text-white/50">
-                    Start
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={formStart ? formStart.slice(0, 16) : ""}
-                    onChange={(e) => setFormStart(e.target.value)}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                  />
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-xs uppercase tracking-[0.3em] text-white/50">
-                    End
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={formEnd ? formEnd.slice(0, 16) : ""}
-                    onChange={(e) => setFormEnd(e.target.value)}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    autoFocus
                   />
                 </div>
 
-                <div className="grid gap-1">
-                  <label className="text-xs uppercase tracking-[0.3em] text-white/50">
-                    Repeat
-                  </label>
-                  <select
-                    value={formRepeat}
-                    onChange={(e) =>
-                      setFormRepeat(e.target.value as RepeatValue)
-                    }
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                  >
-                    <option value="none">Does not repeat</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="yearly">Yearly</option>
-                    <option value="custom">Custom</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-medium text-slate-500">Start</label>
+                    <input
+                      type="datetime-local"
+                      value={formStart ? formStart.slice(0, 16) : ""}
+                      onChange={(e) => setFormStart(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-medium text-slate-500">End</label>
+                    <input
+                      type="datetime-local"
+                      value={formEnd ? formEnd.slice(0, 16) : ""}
+                      onChange={(e) => setFormEnd(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition"
+                    />
+                  </div>
                 </div>
 
-                <div className="grid gap-1">
-                  <label className="text-xs uppercase tracking-[0.3em] text-white/50">
-                    Color
-                  </label>
-                  <select
-                    value={formColorId}
-                    onChange={(e) => setFormColorId(e.target.value)}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                  >
-                    <option value="">Default</option>
-                    {EVENT_COLOR_OPTIONS.map((color) => (
-                      <option key={color.id} value={color.id}>
-                        {color.label}
-                      </option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-medium text-slate-500">Repeat</label>
+                    <select
+                      value={formRepeat}
+                      onChange={(e) => setFormRepeat(e.target.value as RepeatValue)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition"
+                    >
+                      <option value="none">No repeat</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="yearly">Yearly</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-medium text-slate-500">Color</label>
+                    <select
+                      value={formColorId}
+                      onChange={(e) => setFormColorId(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition"
+                    >
+                      <option value="">Default</option>
+                      {EVENT_COLOR_OPTIONS.map((color) => (
+                        <option key={color.id} value={color.id}>{color.label}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                {formRepeat !== "none" ? (
-                  <div className="grid gap-1">
-                    <label className="text-xs uppercase tracking-[0.3em] text-white/50">
-                      Repeat until
-                    </label>
+                {formRepeat !== "none" && (
+                  <div className="grid gap-1.5">
+                    <label className="text-xs font-medium text-slate-500">Repeat until</label>
                     <input
                       type="date"
                       value={formRepeatUntil}
                       onChange={(e) => setFormRepeatUntil(e.target.value)}
-                      className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition"
                     />
                   </div>
-                ) : null}
+                )}
               </div>
-              <div className="mt-5 flex items-center justify-end gap-3">
+
+              {/* Modal footer */}
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-5 py-3">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 hover:text-white"
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
                 >
                   Cancel
                 </button>
@@ -526,9 +537,9 @@ const CalendarView = forwardRef<CalendarHandle, CalendarViewProps>(
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-300 hover:via-blue-400 hover:to-blue-500 disabled:opacity-60"
+                  className="rounded-lg bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
                 >
-                  {saving ? "Saving..." : "Save"}
+                  {saving ? "Saving…" : editingId ? "Save changes" : "Add event"}
                 </button>
               </div>
             </div>
