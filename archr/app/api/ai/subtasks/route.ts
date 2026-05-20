@@ -36,6 +36,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "taskId and title are required." }, { status: 400 });
     }
 
+    const { data: taskRecord, error: taskErr } = await supabase
+      .from("tasks")
+      .select("assignment_text,file_name,file_url")
+      .eq("id", taskId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (taskErr || !taskRecord) {
+      return NextResponse.json({ error: "Task not found." }, { status: 404 });
+    }
+
+    const hasAssignmentDescription = Boolean(taskRecord.assignment_text?.trim());
+    const hasAssignmentFile = Boolean(taskRecord.file_name || taskRecord.file_url);
+    if (!hasAssignmentDescription && !hasAssignmentFile) {
+      return NextResponse.json(
+        { error: "Subtasks can only be generated for tasks with an uploaded PDF/file or pasted assignment description." },
+        { status: 400 }
+      );
+    }
+
     // ── Build the Gemini prompt ────────────────────────────────
     const deadlineStr = deadline
       ? `Deadline: ${new Date(deadline).toLocaleDateString("en-US", {

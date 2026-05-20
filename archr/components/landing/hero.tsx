@@ -113,12 +113,18 @@ export default function Hero() {
               your priorities and deadlines, so your week always reflects
               what actually matters.
             </p>
-            <div className="mt-5 flex sm:mt-6">
+            <div className="mt-5 flex gap-3 sm:mt-6">
               <a
-                href="#waitlist"
+                href="/signup"
                 className="inline-flex items-center rounded-full bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 ring-1 ring-inset ring-white/20 transition hover:from-blue-300 hover:via-blue-400 hover:to-blue-500"
               >
-                Join the waitlist →
+                Get started →
+              </a>
+              <a
+                href="/login"
+                className="inline-flex items-center rounded-full border border-black/10 px-7 py-3 text-sm font-semibold text-black/70 transition hover:bg-black/5"
+              >
+                Log in
               </a>
             </div>
           </div>

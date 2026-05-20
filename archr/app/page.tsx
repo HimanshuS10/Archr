@@ -18,7 +18,7 @@ export default function Home() {
       <Feature />
       <Benefits />
       <HowItWorks />
-      <Pricing />
+      {/* <Pricing /> */}
       <FAQ />
       <Waitlist />
       <Footer />

@@ -33,16 +33,19 @@ export default function Navbar() {
           <a className="text-sm font-semibold text-black/70 transition hover:text-black" href="#faq">
             FAQ
           </a>
-          <a className="text-sm font-semibold text-white transition hover:text-white bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-3 py-2 rounded-4xl hover:from-blue-300 hover:via-blue-400 hover:to-blue-500" href="#waitlist">
-            Join Waitlist
+          <a className="text-sm font-semibold text-black/70 transition hover:text-black" href="/login">
+            Log in
+          </a>
+          <a className="text-sm font-semibold text-white transition hover:text-white bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-3 py-2 rounded-4xl hover:from-blue-300 hover:via-blue-400 hover:to-blue-500" href="/signup">
+            Sign up
           </a>
         </nav>
 
         <a
-          href="#waitlist"
+          href="/signup"
           className="text-sm text-white transition hover:text-black bg-linear-to-b from-blue-400 via-blue-500 to-blue-600 px-3 py-2 rounded-4xl hover:from-blue-300 hover:via-blue-400 hover:to-blue-500 hover:cursor-pointer md:hidden"
         >
-          Join Waitlist
+          Sign up
         </a>
       </div>
     </header>
