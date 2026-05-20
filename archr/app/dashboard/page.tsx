@@ -1,41 +1,39 @@
 "use client";
 
-import Sidebar from "@/components/dashboard/Sidebar";
-import { useEffect, useState } from "react";
+import Sidebar, { type Tab } from "@/components/dashboard/Sidebar";
+import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Dashboard from "@/components/dashboard/Dashboard";
 import Events from "@/components/dashboard/Events";
 import Tasks from "@/components/dashboard/Tasks";
+import Deadlines from "@/components/dashboard/Deadlines";
 
-const Home = () => {
+export default function DashboardPage() {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<"Home" | "Events" | "Tasks">("Home");
+  const [activeTab, setActiveTab] = useState<Tab>("Home");
 
-  useEffect(() => {
-    const getSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      console.log(data.session?.provider_token);
-      console.log(data.session?.provider_refresh_token);
-    };
-
-    getSession();
-  }, []);
+  const marginLeft = collapsed ? 56 : 200;
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <Sidebar
         collapsed={collapsed}
-        onToggle={() => setCollapsed((prev) => !prev)}
+        onToggle={() => setCollapsed((p) => !p)}
         activeTab={activeTab}
         onTabChange={setActiveTab}
       />
 
-      {activeTab === "Home" && <Dashboard isExpanded={!collapsed} />}
-      {activeTab === "Events" && <Events isExpanded={!collapsed} />}
-      {activeTab === "Tasks" && <Tasks isExpanded={!collapsed} />}
-
+      <div>
+        {activeTab === "Home"      && <Dashboard isExpanded={!collapsed} />}
+        {activeTab === "Events"    && <Events    isExpanded={!collapsed} />}
+        {activeTab === "Tasks To Do" && <Tasks    isExpanded={!collapsed} />}
+        {activeTab === "Deadlines" && (
+          <Deadlines
+            isExpanded={!collapsed}
+            onViewTasksTab={() => setActiveTab("Tasks To Do")}
+          />
+        )}
+      </div>
     </div>
   );
 }
-
-export default Home;
